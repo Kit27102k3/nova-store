@@ -3,12 +3,19 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { categories, products } from "@/data/products";
+import type { StoreCategory } from "@/lib/supabase/catalog";
+import type { Product } from "@/types/product";
 import { ProductCard } from "@/components/products/ProductCard";
 import { useStore } from "@/components/store-context";
 import { Icon } from "@/components/ui/Icon";
 
-export function ProductCatalog() {
+export function ProductCatalog({
+  categories,
+  products,
+}: {
+  categories: StoreCategory[];
+  products: Product[];
+}) {
   const params = useSearchParams();
   const router = useRouter();
   const { favorites } = useStore();
@@ -29,7 +36,7 @@ export function ProductCatalog() {
       return matchesQuery && matchesCategory && matchesPrice && matchesFavorite;
     });
     return [...list].sort((a, b) => sort === "price-asc" ? a.price - b.price : sort === "price-desc" ? b.price - a.price : Number(b.isNew) - Number(a.isNew));
-  }, [category, favorites, onlyFavorites, price, query, sort]);
+  }, [category, favorites, onlyFavorites, price, products, query, sort]);
 
   const updateUrl = (next: string) => {
     const url = new URLSearchParams(params.toString());

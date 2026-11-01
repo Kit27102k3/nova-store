@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { useStore } from "@/components/store-context";
 import {
   login,
   logout,
@@ -9,11 +10,13 @@ import {
   requestPasswordReset,
   type AuthFormState,
 } from "@/app/actions/auth";
+import { CustomerProfileForm } from "@/components/account/CustomerProfileForm";
 
 type AccountAuthProps = {
   configured: boolean;
   email?: string;
   name?: string;
+  phone?: string;
   notice?: string;
 };
 
@@ -40,8 +43,10 @@ export function AccountAuth({
   configured,
   email,
   name,
+  phone = "",
   notice,
 }: AccountAuthProps) {
+  const { syncWishlist } = useStore();
   const [mode, setMode] = useState<Mode>("register");
   const [registerState, registerAction, registering] = useActionState(
     register,
@@ -52,6 +57,10 @@ export function AccountAuth({
     requestPasswordReset,
     null,
   );
+
+  useEffect(() => {
+    if (email) void syncWishlist();
+  }, [email, syncWishlist]);
 
   if (email) {
     return (
@@ -80,6 +89,7 @@ export function AccountAuth({
             Địa chỉ giao hàng
           </Link>
         </div>
+        <CustomerProfileForm email={email} name={name ?? ""} phone={phone} />
         <form action={logout} className="mt-4">
           <button className="h-12 w-full rounded-xl bg-cobalt text-sm font-bold text-white transition hover:bg-navy">
             Đăng xuất

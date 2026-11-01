@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
+import { loadAdminDashboardData } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
@@ -37,7 +38,7 @@ async function AdminSession({
   if (previewAvailable && params.preview === "1") {
     return (
       <AdminShell>
-        <AdminDashboard email="Bản xem trước" preview />
+        <AdminDashboard email="Bản xem trước" preview data={null} />
       </AdminShell>
     );
   }
@@ -64,9 +65,14 @@ async function AdminSession({
   }
 
   if (data.user?.email?.toLowerCase() === adminEmail) {
+    const dashboard = await loadAdminDashboardData();
     return (
       <AdminShell>
-        <AdminDashboard email={data.user.email} />
+        <AdminDashboard
+          email={data.user.email}
+          data={dashboard.data}
+          loadError={dashboard.error}
+        />
       </AdminShell>
     );
   }

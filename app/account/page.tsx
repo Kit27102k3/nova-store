@@ -74,6 +74,20 @@ async function AccountSession({
     typeof user?.user_metadata.full_name === "string"
       ? user.user_metadata.full_name
       : undefined;
+  let phone = "";
+  if (user) {
+    const supabase = await createSupabaseServerClient();
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (error) {
+      console.error("Không thể tải số điện thoại hồ sơ.", error);
+    } else {
+      phone = profile?.phone ?? "";
+    }
+  }
 
   return (
     <>
@@ -90,6 +104,7 @@ async function AccountSession({
           configured={configured}
           email={user?.email}
           name={name}
+          phone={phone}
           notice={
             typeof params.auth === "string"
               ? authNotices[params.auth]

@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { categories } from "@/data/products";
 import { categoryHref } from "@/lib/utils";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { Icon } from "@/components/ui/Icon";
+import { getStoreCatalog } from "@/lib/supabase/catalog";
 
 export const metadata: Metadata = { title: "Danh mục" };
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  const { categories } = await getStoreCatalog();
   return <div className="container-shell pb-20">
     <Breadcrumb items={[{ label: "Danh mục" }]} />
     <header className="relative mt-6 overflow-hidden rounded-[32px] bg-gradient-to-br from-[#eef0ff] via-[#f8f6ff] to-[#fff0ec] px-7 py-9 sm:px-12 sm:py-12">

@@ -1,4 +1,4 @@
-export type Category = "Thời trang" | "Phụ kiện" | "Công nghệ" | "Đời sống";
+export type Category = string;
 
 export type Product = {
   id: number;

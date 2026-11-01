@@ -33,7 +33,7 @@ Giỏ hàng, yêu thích, tìm kiếm và lọc hoạt động ở phía fronten
 2. Điền `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` bằng publishable key trong Supabase Dashboard (hoặc dùng anon key cũ qua `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Không dùng `service_role` key trong ứng dụng.
 3. Giữ `NEXT_PUBLIC_SUPABASE_URL` theo project của bạn và đặt `NEXT_PUBLIC_SITE_URL` bằng origin đang chạy, ví dụ `http://localhost:3000`.
 4. Trong Supabase Dashboard → Authentication → URL Configuration, thêm `http://localhost:3000/auth/callback` vào Redirect URLs. Thêm callback URL của domain production khi triển khai.
-5. Trong Supabase Dashboard → SQL Editor, chạy nội dung `supabase/migrations/20261029000000_create_profiles.sql` để tạo `public.profiles` có Row Level Security và đồng bộ hồ sơ cho cả tài khoản hiện có lẫn tài khoản đăng ký mới.
+5. Trong Supabase Dashboard → SQL Editor, chạy lần lượt các file trong `supabase/migrations/` để tạo hồ sơ, catalog, tồn kho, đơn hàng, sổ địa chỉ, danh sách yêu thích, newsletter và các chính sách Row Level Security.
 6. Khởi động lại ứng dụng sau khi đổi biến môi trường.
 
 Xác nhận email được bật theo cấu hình Supabase. Đường dẫn khôi phục mật khẩu dùng cùng callback `/auth/callback` và chuyển tiếp đến `/account/reset-password`.
@@ -43,8 +43,10 @@ Email và mật khẩu xác thực được Supabase Auth quản lý trong `auth
 
 Trang quản trị nằm tại `/admin`. Tạo tài khoản quản trị trong Supabase Dashboard → Authentication → Users, đặt mật khẩu mạnh riêng, sau đó khai báo email tài khoản đó trong biến môi trường server-only `ADMIN_EMAIL` (không dùng tiền tố `NEXT_PUBLIC_`). Khởi động lại ứng dụng sau khi cập nhật cấu hình.
 
-Không có tài khoản hoặc mật khẩu mặc định được nhúng trong ứng dụng. Đăng nhập admin dùng Supabase Auth; chỉ email trùng `ADMIN_EMAIL` được phép xem dashboard. Khu vực quản trị có các màn hình tổng quan, sản phẩm, danh mục, đơn hàng, khách hàng và cài đặt. Nội dung đơn hàng/khách hàng/cài đặt là dữ liệu demo; tồn kho và thao tác chỉnh sửa chưa được kết nối backend.
+Không có tài khoản hoặc mật khẩu mặc định được nhúng trong ứng dụng. Đăng nhập admin dùng Supabase Auth; chỉ email trùng `ADMIN_EMAIL` được phép xem dashboard. Để bật quyền đọc/ghi quản trị, đặt `SUPABASE_SERVICE_ROLE_KEY` bằng secret/service-role key của Supabase trong môi trường server; tuyệt đối không dùng tiền tố `NEXT_PUBLIC_` hoặc đưa key này vào client. Dashboard hỗ trợ quản lý sản phẩm, ảnh, giá, biến thể, tồn kho, trạng thái hiển thị, danh mục, chi tiết và trạng thái đơn hàng, khách hàng cùng cài đặt vận chuyển. Đơn đặt hàng được lưu vào Supabase, giá/tồn kho được xác minh phía server và tồn kho được hoàn lại khi hủy đơn. Chỉ triển khai HTTPS và bảo vệ secret key như thông tin xác thực đặc quyền.
+
+Khách hàng có thể cập nhật hồ sơ, lưu nhiều địa chỉ riêng tư, đồng bộ yêu thích khi đăng nhập, xem đơn hàng đã đặt bằng tài khoản và hủy đơn đang chờ xác nhận. Checkout tự điền email và địa chỉ mặc định; khách vãng lai vẫn đặt COD được nhưng cần đăng nhập để xem lịch sử đơn. Newsletter lưu email đăng ký vào Supabase. Biểu mẫu liên hệ mở ứng dụng email của khách thay vì giả vờ gửi yêu cầu từ máy chủ.
 
 Khi chạy local với `npm run dev`, có thể mở `/admin?preview=1` để xem dashboard mẫu mà không cần đăng nhập. Chế độ này chỉ có trong môi trường phát triển và không cấp quyền truy cập dữ liệu hay chức năng quản trị thật.
 
-Thanh toán và gửi email liên hệ chưa được kết nối dịch vụ thật.
+Thanh toán thẻ và gửi email liên hệ chưa được kết nối; checkout hiện tạo đơn COD (thanh toán khi nhận hàng).

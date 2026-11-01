@@ -27,8 +27,11 @@ export function Header() {
     () => !getSupabaseConfig(),
   );
   const router = useRouter();
-  const { cart, favorites } = useStore();
+  const { cart, favorites, settings } = useStore();
   const quantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const shippingThreshold = new Intl.NumberFormat("vi-VN").format(
+    settings.shippingThreshold,
+  );
 
   const refreshAccountUser = useCallback(async () => {
     if (!getSupabaseConfig()) {
@@ -62,7 +65,9 @@ export function Header() {
   return (
     <>
       <div className="hidden bg-navy py-2 text-center text-[11px] font-medium tracking-wide text-white sm:block">
-        MIỄN PHÍ VẬN CHUYỂN CHO ĐƠN HÀNG TỪ 499.000đ
+        {settings.shippingThreshold === 0
+          ? "MIỄN PHÍ VẬN CHUYỂN CHO MỌI ĐƠN HÀNG"
+          : `MIỄN PHÍ VẬN CHUYỂN CHO ĐƠN HÀNG TỪ ${shippingThreshold}đ`}
       </div>
       <header className="sticky top-0 z-50 border-b border-line/70 bg-white/95 backdrop-blur">
         <div className="container-shell flex h-[74px] items-center gap-5">
