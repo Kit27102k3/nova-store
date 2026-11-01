@@ -1,10 +1,10 @@
 import "server-only";
 
-import { cache } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { cacheLife, cacheTag } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { categories as sampleCategories, products as sampleProducts } from "@/data/products";
 import type { Category, Product } from "@/types/product";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
 export type StoreCategory = {
@@ -47,12 +47,23 @@ function getSampleCatalog(): StoreCatalog {
   };
 }
 
-export const getStoreCatalog = cache(async (): Promise<StoreCatalog> => {
-  if (!getSupabaseConfig()) {
+export async function getStoreCatalog(): Promise<StoreCatalog> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("store-catalog");
+
+  const config = getSupabaseConfig();
+  if (!config) {
     return getSampleCatalog();
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = createClient(config.url, config.key, {
+    auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      persistSession: false,
+    },
+  });
   const [categoryResult, productResult, settingsResult] = await Promise.all([
     supabase.from("store_categories").select("*").order("name"),
     supabase
@@ -114,4 +125,4 @@ export const getStoreCatalog = cache(async (): Promise<StoreCatalog> => {
         }
       : defaultSettings,
   };
-});
+}

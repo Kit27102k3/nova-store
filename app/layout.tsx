@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { RouteTransition } from "@/components/layout/RouteTransition";
 import { StoreProvider } from "@/components/store-context";
 import { getStoreCatalog } from "@/lib/supabase/catalog";
 import { products } from "@/data/products";
@@ -26,7 +27,11 @@ const fallbackSettings: StoreSettings = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="vi" className={`${manrope.variable} ${playfair.variable}`}>
+    <html
+      lang="vi"
+      data-scroll-behavior="smooth"
+      className={`${manrope.variable} ${playfair.variable}`}
+    >
       <body>
         <Suspense fallback={<StoreFrameFallback />}>
           <StoreFrame>{children}</StoreFrame>
@@ -41,7 +46,9 @@ async function StoreFrame({ children }: { children: ReactNode }) {
   return (
     <StoreProvider products={products} settings={settings}>
       <Header />
-      <main className="min-h-[60vh] flex-1">{children}</main>
+      <main className="min-h-[60vh] flex-1">
+        <RouteTransition>{children}</RouteTransition>
+      </main>
       <Footer settings={settings} />
     </StoreProvider>
   );

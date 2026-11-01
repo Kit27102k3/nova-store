@@ -207,12 +207,21 @@ export function StoreProvider({
 
   const addToCart = useCallback(
     (productId: number, quantity = 1, variant?: string) => {
-      if (
-        !products.some((product) => product.id === productId) ||
-        !Number.isSafeInteger(quantity) ||
-        quantity < 1
-      ) {
+      const product = products.find((entry) => entry.id === productId);
+      if (!product || !Number.isSafeInteger(quantity) || quantity < 1) {
         notify("Sản phẩm hoặc số lượng không hợp lệ.");
+        return;
+      }
+      if (
+        (product.variants &&
+          !product.variants.options.includes(variant ?? "")) ||
+        (!product.variants && variant)
+      ) {
+        notify(
+          product.variants
+            ? `Vui lòng chọn ${product.variants.label.toLocaleLowerCase("vi-VN")} trước khi thêm vào giỏ.`
+            : "Biến thể sản phẩm không hợp lệ.",
+        );
         return;
       }
       setCart((current) => {

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import {
   createSupabaseAdminClient,
   verifyAdminSession,
@@ -58,6 +58,7 @@ async function getAdminClient() {
 }
 
 function revalidateStorefront(slug?: string) {
+  updateTag("store-catalog");
   for (const path of [
     "/",
     "/products",

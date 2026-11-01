@@ -81,5 +81,12 @@ async function AddressSession() {
       </section>
     );
   }
-  return <AddressBook addresses={result.data} />;
+  return (
+    <AddressBook
+      addresses={result.data}
+      customerId={result.user.id}
+      mode={result.mode}
+      notice={result.notice}
+    />
+  );
 }

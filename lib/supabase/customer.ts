@@ -52,6 +52,16 @@ export type CustomerDataResult<T> =
   | { user: User; data: T; error: null }
   | { user: null; data: null; error: string };
 
+export type CustomerAddressesResult =
+  | {
+      user: User;
+      data: CustomerAddress[];
+      mode: "database" | "local";
+      notice: string | null;
+      error: null;
+    }
+  | { user: null; data: null; mode: null; notice: null; error: string };
+
 export async function getCustomerProfile(): Promise<
   CustomerDataResult<CustomerProfile>
 > {
@@ -106,21 +116,35 @@ export async function getCustomerProfile(): Promise<
 }
 
 export async function getCustomerAddresses(): Promise<
-  CustomerDataResult<CustomerAddress[]>
+  CustomerAddressesResult
 > {
   if (!getSupabaseConfig()) {
-    return { user: null, data: null, error: "Tài khoản chưa được cấu hình." };
+    return {
+      user: null,
+      data: null,
+      mode: null,
+      notice: null,
+      error: "Tài khoản chưa được cấu hình.",
+    };
   }
   const supabase = await createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError && authError.name !== "AuthSessionMissingError") {
     console.error("Không thể xác minh tài khoản khi tải địa chỉ.", authError);
-    return { user: null, data: null, error: "Không thể xác minh tài khoản." };
+    return {
+      user: null,
+      data: null,
+      mode: null,
+      notice: null,
+      error: "Không thể xác minh tài khoản.",
+    };
   }
   if (!authData.user) {
     return {
       user: null,
       data: null,
+      mode: null,
+      notice: null,
       error: "Vui lòng đăng nhập để quản lý địa chỉ giao hàng.",
     };
   }
@@ -133,13 +157,31 @@ export async function getCustomerAddresses(): Promise<
     .order("created_at", { ascending: false });
   if (error) {
     console.error("Không thể tải địa chỉ khách hàng.", error);
+    if (error.code === "42P01" || error.code === "PGRST205") {
+      return {
+        user: authData.user,
+        data: [],
+        mode: "local",
+        notice:
+          "Cơ sở dữ liệu địa chỉ chưa được bật. Địa chỉ hiện được lưu trên thiết bị này; chạy migration 20261102000000_customer_features.sql để đồng bộ lên tài khoản.",
+        error: null,
+      };
+    }
     return {
       user: null,
       data: null,
+      mode: null,
+      notice: null,
       error: "Không thể tải địa chỉ. Hãy chạy migration Supabase mới nhất.",
     };
   }
-  return { user: authData.user, data: data ?? [], error: null };
+  return {
+    user: authData.user,
+    data: data ?? [],
+    mode: "database",
+    notice: null,
+    error: null,
+  };
 }
 
 export async function getCustomerOrders(): Promise<

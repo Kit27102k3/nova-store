@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
+import { AddressPicker } from "@/components/address/AddressPicker";
 import { useStore } from "@/components/store-context";
 import { placeStoreOrder } from "@/app/actions/orders";
 import { formatPrice } from "@/data/products";
+import type { DeliveryAddressSuggestion } from "@/lib/geocoding/types";
 
 type CheckoutCustomer = {
   email: string;
@@ -29,10 +31,19 @@ export function CheckoutView({
   const [complete, setComplete] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const [deliveryAddress, setDeliveryAddress] = useState({
+    street: customer?.address?.street ?? "",
+    district: customer?.address?.district ?? "",
+    city: customer?.address?.city ?? "",
+  });
   const items = cart.flatMap((item) => {
     const product = products.find((entry) => entry.id === item.productId);
     return product ? [{ ...item, product }] : [];
   });
+  const itemsNeedingVariant = items.filter(
+    ({ product, variant }) =>
+      product.variants && !product.variants.options.includes(variant ?? ""),
+  );
   const subtotal = items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0,
@@ -42,9 +53,23 @@ export function CheckoutView({
   const field =
     "mt-2 h-12 w-full rounded-xl border border-line bg-white px-4 outline-none focus:border-cobalt";
 
+  const chooseDeliveryAddress = (address: DeliveryAddressSuggestion) => {
+    setDeliveryAddress({
+      street: address.street,
+      district: address.district,
+      city: address.city,
+    });
+  };
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage("");
+    if (itemsNeedingVariant.length > 0) {
+      setErrorMessage(
+        "Vui lòng chọn đầy đủ tùy chọn cho sản phẩm trước khi đặt hàng.",
+      );
+      return;
+    }
     const formData = new FormData(event.currentTarget);
     const orderItems = items.map(({ product, quantity, variant }) => ({
       product_id: product.id,
@@ -173,42 +198,65 @@ export function CheckoutView({
             <h2 className="font-display text-2xl text-navy">
               Địa chỉ giao hàng
             </h2>
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-navy sm:col-span-2">
-                Địa chỉ
-                <input
-                  required
-                  minLength={3}
-                  maxLength={240}
-                  className={field}
-                  name="address"
-                  autoComplete="street-address"
-                  defaultValue={customer?.address?.street}
-                />
-              </label>
-              <label className="text-sm font-semibold text-navy">
-                Quận / Huyện
-                <input
-                  required
-                  minLength={2}
-                  maxLength={120}
-                  className={field}
-                  name="district"
-                  defaultValue={customer?.address?.district}
-                />
-              </label>
-              <label className="text-sm font-semibold text-navy">
-                Tỉnh / Thành phố
-                <input
-                  required
-                  minLength={2}
-                  maxLength={120}
-                  className={field}
-                  name="city"
-                  autoComplete="address-level1"
-                  defaultValue={customer?.address?.city}
-                />
-              </label>
+            <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+              <AddressPicker onSelect={chooseDeliveryAddress} />
+              <div className="grid gap-5">
+                <label className="text-sm font-semibold text-navy">
+                  Địa chỉ
+                  <input
+                    required
+                    minLength={3}
+                    maxLength={240}
+                    className={field}
+                    name="address"
+                    autoComplete="street-address"
+                    value={deliveryAddress.street}
+                    onChange={(event) =>
+                      setDeliveryAddress((current) => ({
+                        ...current,
+                        street: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <label className="text-sm font-semibold text-navy">
+                    Quận / Huyện
+                    <input
+                      required
+                      minLength={2}
+                      maxLength={120}
+                      className={field}
+                      name="district"
+                      value={deliveryAddress.district}
+                      onChange={(event) =>
+                        setDeliveryAddress((current) => ({
+                          ...current,
+                          district: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="text-sm font-semibold text-navy">
+                    Tỉnh / Thành phố
+                    <input
+                      required
+                      minLength={2}
+                      maxLength={120}
+                      className={field}
+                      name="city"
+                      autoComplete="address-level1"
+                      value={deliveryAddress.city}
+                      onChange={(event) =>
+                        setDeliveryAddress((current) => ({
+                          ...current,
+                          city: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -240,17 +288,37 @@ export function CheckoutView({
               <dd className="text-lg">{formatPrice(subtotal + shipping)}</dd>
             </div>
           </dl>
-          {errorMessage && (
+          {(errorMessage || itemsNeedingVariant.length > 0) && (
             <p
               role="alert"
               className="mt-5 rounded-xl border border-coral/40 bg-coral/10 p-3 text-sm text-navy"
             >
-              {errorMessage}
+              {itemsNeedingVariant.length > 0
+                ? "Giỏ hàng có sản phẩm chưa chọn tùy chọn bắt buộc. Hãy xóa món đó khỏi giỏ, mở lại trang sản phẩm và chọn kích cỡ/màu trước khi thêm lại."
+                : errorMessage}
+              {itemsNeedingVariant.length > 0 && (
+                <span className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                  {itemsNeedingVariant.map(({ product }) => (
+                    <span key={product.id} className="block">
+                      <Link
+                        href={`/products/${product.slug}`}
+                        className="font-bold underline"
+                      >
+                        Mở {product.name} để chọn{" "}
+                        {product.variants?.label.toLocaleLowerCase("vi-VN")}
+                      </Link>
+                    </span>
+                  ))}
+                  <Link href="/cart" className="font-bold underline">
+                    Quay lại giỏ hàng để xóa món cũ
+                  </Link>
+                </span>
+              )}
             </p>
           )}
           <button
-            disabled={pending}
-            className="mt-6 h-12 w-full rounded-full bg-navy text-sm font-bold text-white hover:bg-cobalt disabled:cursor-wait disabled:opacity-60"
+            disabled={pending || itemsNeedingVariant.length > 0}
+            className="mt-6 h-12 w-full rounded-full bg-navy text-sm font-bold text-white hover:bg-cobalt disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? "Đang ghi nhận..." : "Đặt hàng"}
           </button>
