@@ -5,6 +5,7 @@ import {
   createSupabaseAdminClient,
   verifyAdminSession,
 } from "@/lib/supabase/admin";
+import { getGhnTrackingUrl } from "@/lib/shipping/ghn";
 
 export type AdminMutationResult = {
   success: boolean;
@@ -290,6 +291,41 @@ export async function updateAdminOrderStatus(
   }
   revalidatePath("/admin");
   return succeeded("Đã cập nhật trạng thái đơn hàng.");
+}
+
+export async function saveAdminGhnOrderCode(
+  formData: FormData,
+): Promise<AdminMutationResult> {
+  const id = Number(field(formData, "id"));
+  const orderCode = field(formData, "ghnOrderCode").toUpperCase();
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !/^[A-Z0-9_-]{1,40}$/.test(orderCode)
+  ) {
+    return failed("Mã vận đơn GHN không hợp lệ.");
+  }
+  const { client, error: authorizationError } = await getAdminClient();
+  if (!client) {
+    return failed(authorizationError ?? "Không thể xác thực quản trị viên.");
+  }
+  const { data, error } = await client
+    .from("store_orders")
+    .update({
+      ghn_order_code: orderCode,
+      shipping_tracking_url: getGhnTrackingUrl(orderCode),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error("Không thể lưu mã vận đơn GHN.", error);
+    return failed("Không thể lưu mã vận đơn. Hãy kiểm tra migration mới nhất.");
+  }
+  revalidatePath("/admin");
+  revalidatePath("/account/orders");
+  return succeeded("Đã lưu mã vận đơn GHN.");
 }
 
 export async function saveAdminSettings(

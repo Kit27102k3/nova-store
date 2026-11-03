@@ -31,6 +31,15 @@ export type CustomerOrderItem = {
   quantity: number;
 };
 
+export type CustomerOrderEvent = {
+  id: number;
+  event_type: "order" | "status" | "tracking" | "shipping";
+  title: string;
+  description: string;
+  source: "system" | "admin" | "ghn";
+  created_at: string;
+};
+
 export type CustomerOrder = {
   id: number;
   order_number: string;
@@ -45,11 +54,16 @@ export type CustomerOrder = {
   shipping_fee: number;
   total: number;
   created_at: string;
+  ghn_order_code: string | null;
+  shipping_status: string | null;
+  shipping_status_label: string | null;
+  shipping_tracking_url: string | null;
+  events: CustomerOrderEvent[];
   items: CustomerOrderItem[];
 };
 
 export type CustomerDataResult<T> =
-  | { user: User; data: T; error: null }
+  | { user: User; data: T; error: null; notice?: string }
   | { user: null; data: null; error: string };
 
 export type CustomerAddressesResult =
@@ -61,6 +75,10 @@ export type CustomerAddressesResult =
       error: null;
     }
   | { user: null; data: null; mode: null; notice: null; error: string };
+
+function isMissingOrderTrackingMigration(error: { code?: string }) {
+  return ["42P01", "42703", "PGRST204", "PGRST205"].includes(error.code ?? "");
+}
 
 export async function getCustomerProfile(): Promise<
   CustomerDataResult<CustomerProfile>
@@ -225,8 +243,14 @@ export async function getCustomerOrders(): Promise<
     subtotal: Number(row.subtotal),
     shipping_fee: Number(row.shipping_fee),
     total: Number(row.total),
+    ghn_order_code: null,
+    shipping_status: null,
+    shipping_status_label: null,
+    shipping_tracking_url: null,
+    events: [],
     items: [],
   }));
+  let notice: string | undefined;
   if (orders.length) {
     const { data: items, error: itemsError } = await supabase
       .from("store_order_items")
@@ -255,8 +279,77 @@ export async function getCustomerOrders(): Promise<
           quantity: Number(item.quantity),
         }));
     }
+
+    const { data: trackingRows, error: trackingError } = await supabase
+      .from("store_orders")
+      .select("id, ghn_order_code, shipping_status, shipping_status_label, shipping_tracking_url")
+      .in(
+        "id",
+        orders.map((order) => order.id),
+      );
+    if (trackingError) {
+        if (isMissingOrderTrackingMigration(trackingError)) {
+          console.warn(
+            "Theo dõi GHN chưa được bật. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase.",
+          );
+        } else {
+          console.error(
+            "Không thể tải thông tin vận chuyển đơn hàng.",
+            trackingError,
+          );
+        }
+        notice =
+          "Lịch sử đơn hàng đã tải, nhưng theo dõi GHN chưa sẵn sàng. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase để bật tính năng này.";
+    } else {
+      for (const order of orders) {
+        const tracking = trackingRows.find(
+          (row) => Number(row.id) === order.id,
+        );
+        if (!tracking) continue;
+        order.ghn_order_code = tracking.ghn_order_code ?? null;
+        order.shipping_status = tracking.shipping_status ?? null;
+        order.shipping_status_label = tracking.shipping_status_label ?? null;
+        order.shipping_tracking_url = tracking.shipping_tracking_url ?? null;
+      }
+
+      const { data: events, error: eventsError } = await supabase
+        .from("store_order_events")
+        .select("id, order_id, event_type, title, description, source, created_at")
+        .in(
+          "order_id",
+          orders.map((order) => order.id),
+        )
+        .order("created_at", { ascending: true });
+      if (eventsError) {
+        if (isMissingOrderTrackingMigration(eventsError)) {
+          console.warn(
+            "Lịch sử vận chuyển chưa được bật. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase.",
+          );
+        } else {
+          console.error(
+            "Không thể tải lịch sử trạng thái đơn hàng.",
+            eventsError,
+          );
+        }
+        notice =
+          "Lịch sử đơn hàng đã tải, nhưng lịch sử vận chuyển chưa sẵn sàng. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase để bật tính năng này.";
+      } else {
+        for (const order of orders) {
+          order.events = (events ?? [])
+            .filter((event) => Number(event.order_id) === order.id)
+            .map((event) => ({
+              id: Number(event.id),
+              event_type: event.event_type,
+              title: event.title,
+              description: event.description,
+              source: event.source,
+              created_at: event.created_at,
+            }));
+        }
+      }
+    }
   }
-  return { user: authData.user, data: orders, error: null };
+  return { user: authData.user, data: orders, error: null, notice };
 }
 
 export async function getCheckoutCustomerDetails() {

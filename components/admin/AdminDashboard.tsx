@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition, type FormEvent } from "react";
 import {
   deleteAdminCategory,
   deleteAdminProduct,
+  saveAdminGhnOrderCode,
   saveAdminCategory,
   saveAdminProduct,
   saveAdminSettings,
@@ -689,6 +690,56 @@ function FragmentOrderRow({
               <div><h3 className="font-bold text-navy">Địa chỉ nhận hàng</h3><p className="mt-2 leading-6 text-muted">{order.customer_phone}<br />{order.address}, {order.district}, {order.city}</p></div>
               <div><h3 className="font-bold text-navy">Sản phẩm trong đơn</h3><ul className="mt-2 space-y-2">{order.items.map((item, index) => <li key={`${item.product_name}-${index}`} className="flex justify-between gap-3 text-muted"><span>{item.quantity}× {item.product_name}{item.variant ? ` · ${item.variant}` : ""}</span><span className="shrink-0">{formatPrice(item.unit_price * item.quantity)}</span></li>)}</ul><p className="mt-3 border-t border-line pt-3 text-right text-xs text-muted">Tạm tính {formatPrice(order.subtotal)} · Phí ship {formatPrice(order.shipping_fee)}</p></div>
             </div>
+            <section className="mt-6 rounded-xl border border-line bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-navy">Theo dõi vận chuyển GHN</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    Tạo vận đơn trên GHN, sau đó nhập mã đơn vận chuyển để đồng bộ trạng thái.
+                  </p>
+                  {order.shipping_status_label && (
+                    <p className="mt-2 text-sm font-semibold text-cobalt">
+                      {order.shipping_status_label}
+                    </p>
+                  )}
+                  {order.shipping_tracking_url && (
+                    <a
+                      href={order.shipping_tracking_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-xs font-bold text-cobalt underline"
+                    >
+                      Mở trang tra cứu GHN
+                    </a>
+                  )}
+                </div>
+                <form
+                  onSubmit={(event) => onSubmit(event, saveAdminGhnOrderCode)}
+                  className="flex min-w-0 flex-wrap items-end gap-2"
+                >
+                  <input type="hidden" name="id" value={order.id} />
+                  <label className="text-xs font-semibold text-navy">
+                    Mã vận đơn GHN
+                    <input
+                      name="ghnOrderCode"
+                      required
+                      maxLength={40}
+                      pattern="[A-Za-z0-9_-]+"
+                      defaultValue={order.ghn_order_code ?? ""}
+                      placeholder="Ví dụ: GHN..."
+                      disabled={pending}
+                      className="mt-1 h-9 w-48 rounded-lg border border-line bg-white px-3 text-sm font-normal outline-none focus:border-cobalt"
+                    />
+                  </label>
+                  <button
+                    disabled={pending}
+                    className="h-9 rounded-lg bg-navy px-4 text-xs font-bold text-white hover:bg-cobalt disabled:opacity-50"
+                  >
+                    {pending ? "Đang lưu..." : "Lưu mã"}
+                  </button>
+                </form>
+              </div>
+            </section>
           </td>
         </tr>
       )}

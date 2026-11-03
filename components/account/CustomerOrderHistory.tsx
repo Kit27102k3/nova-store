@@ -97,11 +97,11 @@ export function CustomerOrderHistory({
   return (
     <section className="mt-5">
       <div className="overflow-hidden rounded-2xl border border-[#dfe2f1] bg-white shadow-[0_18px_45px_-30px_rgba(49,92,255,0.45)]">
-        <div className="overflow-x-auto border-b border-white/10 bg-[#151a35]">
+        <div className="border-b border-white/10 bg-[#151a35]">
           <div
             role="tablist"
             aria-label="Lọc đơn hàng theo trạng thái"
-            className="flex min-w-max"
+            className="grid grid-cols-3 sm:flex sm:min-w-max"
           >
             {orderFilters.map((item) => {
               const count =
@@ -116,7 +116,7 @@ export function CustomerOrderHistory({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setFilter(item.value)}
-                  className={`border-b-2 px-4 py-4 text-sm font-bold transition sm:px-6 ${
+                  className={`border-b-2 px-1.5 py-3 text-[10px] font-bold leading-tight transition sm:px-6 sm:py-4 sm:text-sm ${
                     active
                       ? "border-[#dfff00] bg-white/[0.06] text-white"
                       : "border-transparent text-white/60 hover:bg-white/[0.06] hover:text-white"
@@ -301,6 +301,75 @@ export function CustomerOrderHistory({
                     </div>
                   </dl>
                 </div>
+                <section className="xl:col-span-2">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-navy">
+                        Theo dõi vận chuyển
+                      </h3>
+                      <p className="mt-1 text-xs text-muted">
+                        {order.ghn_order_code
+                          ? `Đơn vị vận chuyển GHN · Mã ${order.ghn_order_code}`
+                          : "Mã vận đơn sẽ hiển thị sau khi cửa hàng bàn giao đơn cho GHN."}
+                      </p>
+                      {order.shipping_status_label && (
+                        <p className="mt-2 text-sm font-bold text-cobalt">
+                          {order.shipping_status_label}
+                        </p>
+                      )}
+                    </div>
+                    {order.shipping_tracking_url && (
+                      <a
+                        href={order.shipping_tracking_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 items-center rounded-full bg-cobalt px-4 text-xs font-bold text-white transition hover:bg-navy"
+                      >
+                        Tra cứu trên GHN
+                      </a>
+                    )}
+                  </div>
+                  {order.events.length > 0 ? (
+                    <ol className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {order.events.map((event, index) => (
+                        <li
+                          key={event.id}
+                          className="flex gap-3 rounded-xl border border-[#e8e9f4] bg-white p-3"
+                        >
+                          <span
+                            className={`mt-1 grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-extrabold ${
+                              index === order.events.length - 1
+                                ? "bg-cobalt text-white"
+                                : "bg-[#eef0ff] text-cobalt"
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-navy">
+                              {event.title}
+                            </p>
+                            {event.description && (
+                              <p className="mt-1 break-words text-xs leading-5 text-muted">
+                                {event.description}
+                              </p>
+                            )}
+                            <time
+                              dateTime={event.created_at}
+                              className="mt-1 block text-[11px] text-muted"
+                            >
+                              {formatDate(event.created_at)}
+                            </time>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-3 rounded-xl bg-white p-3 text-xs text-muted">
+                      Chưa có cập nhật vận chuyển.
+                    </p>
+                  )}
+                </section>
               </div>
             )}
             </article>

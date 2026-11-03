@@ -64,16 +64,16 @@ export function Header() {
 
   return (
     <>
-      <div className="hidden bg-navy py-2 text-center text-[11px] font-medium tracking-wide text-white sm:block">
+      <div className="bg-navy px-3 py-1.5 text-center text-[9px] font-bold tracking-wide text-white sm:py-2 sm:text-[11px] sm:font-medium">
         {settings.shippingThreshold === 0
           ? "MIỄN PHÍ VẬN CHUYỂN CHO MỌI ĐƠN HÀNG"
           : `MIỄN PHÍ VẬN CHUYỂN CHO ĐƠN HÀNG TỪ ${shippingThreshold}đ`}
       </div>
       <header className="sticky top-0 z-50 border-b border-line/70 bg-white/95 backdrop-blur">
-        <div className="container-shell flex h-[74px] items-center gap-5">
+        <div className="container-shell flex h-16 items-center gap-2 sm:h-[74px] sm:gap-5">
           <button
             type="button"
-            className="icon-button lg:hidden"
+            className="icon-button size-10 shrink-0 lg:hidden sm:size-11"
             aria-label={open ? "Đóng menu" : "Mở menu"}
             aria-expanded={open}
             onClick={() => {
@@ -85,7 +85,7 @@ export function Header() {
           </button>
           <Link
             href="/"
-            className="font-display text-2xl font-bold tracking-[0.18em] text-navy"
+            className="shrink-0 font-display text-xl font-bold tracking-[0.16em] text-navy sm:text-2xl sm:tracking-[0.18em]"
             aria-label="Nova Store trang chủ"
           >
             NOVA
@@ -103,7 +103,7 @@ export function Header() {
           <form
             onSubmit={submit}
             role="search"
-            className="ml-auto hidden h-10 max-w-52 items-center rounded-full bg-mist px-3 md:flex"
+            className="ml-auto hidden h-10 max-w-64 flex-1 items-center rounded-full bg-mist px-4 md:flex"
           >
             <label htmlFor="header-search" className="sr-only">
               Tìm kiếm sản phẩm
@@ -119,7 +119,7 @@ export function Header() {
               <Icon name="search" className="size-4" />
             </button>
           </form>
-          <div className="flex items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:ml-0 sm:gap-1">
             <div
               className="group relative hidden sm:block"
               onMouseEnter={() => void refreshAccountUser()}
@@ -206,7 +206,7 @@ export function Header() {
             </div>
             <Link
               href="/products?favorites=1"
-              className="icon-button relative"
+              className="icon-button relative size-10 sm:size-11"
               aria-label={`Yêu thích, ${favorites.length} sản phẩm`}
             >
               <Icon name="heart" className="size-5" />
@@ -216,7 +216,7 @@ export function Header() {
             </Link>
             <Link
               href="/cart"
-              className="icon-button relative"
+              className="icon-button relative size-10 sm:size-11"
               aria-label={`Giỏ hàng, ${quantity} sản phẩm`}
             >
               <Icon name="bag" className="size-5" />
@@ -224,28 +224,34 @@ export function Header() {
             </Link>
           </div>
         </div>
+        <form
+          onSubmit={submit}
+          role="search"
+          className="container-shell flex h-11 items-center gap-3 rounded-xl border border-line bg-mist/80 px-3 md:hidden"
+        >
+          <label htmlFor="mobile-search" className="sr-only">
+            Tìm kiếm sản phẩm
+          </label>
+          <Icon name="search" className="size-4 shrink-0 text-cobalt" />
+          <input
+            id="mobile-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm sản phẩm"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          />
+          <button
+            type="submit"
+            aria-label="Tìm kiếm"
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-navy shadow-sm"
+          >
+            <Icon name="arrow" className="size-4" />
+          </button>
+        </form>
         {open && (
-          <div className="border-t border-line bg-white px-5 pb-6 lg:hidden">
-            <form
-              onSubmit={submit}
-              className="mt-4 flex h-11 items-center rounded-full bg-mist px-4"
-            >
-              <label htmlFor="mobile-search" className="sr-only">
-                Tìm kiếm sản phẩm
-              </label>
-              <input
-                id="mobile-search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Tìm sản phẩm"
-                className="min-w-0 flex-1 bg-transparent outline-none"
-              />
-              <button aria-label="Tìm kiếm">
-                <Icon name="search" className="size-5" />
-              </button>
-            </form>
+          <div className="border-t border-line bg-white px-4 pb-5 pt-3 lg:hidden">
             <nav
-              className="mt-3 flex flex-col"
+              className="grid grid-cols-2 gap-2"
               aria-label="Điều hướng di động"
             >
               {links.map(([label, href]) => (
@@ -253,7 +259,7 @@ export function Header() {
                   key={href}
                   href={href}
                   onClick={() => setOpen(false)}
-                  className="border-b border-line py-4 text-sm font-semibold"
+                  className="flex min-h-11 items-center rounded-xl bg-mist px-3 text-sm font-bold text-navy transition active:bg-[#e9edff]"
                 >
                   {label}
                 </Link>
@@ -261,23 +267,30 @@ export function Header() {
               <Link
                 href="/account"
                 onClick={() => setOpen(false)}
-                className="border-b border-line py-4 text-sm font-semibold"
+                className="flex min-h-11 items-center rounded-xl bg-mist px-3 text-sm font-bold text-navy transition active:bg-[#e9edff]"
               >
-                {accountUser ? accountUser.name || "Tài khoản của tôi" : "Tài khoản"}
+                {accountUser ? "Tài khoản của tôi" : "Đăng nhập / Đăng ký"}
               </Link>
               <Link
                 href="/account/orders"
                 onClick={() => setOpen(false)}
-                className="border-b border-line py-4 text-sm font-semibold"
+                className="flex min-h-11 items-center rounded-xl bg-mist px-3 text-sm font-bold text-navy transition active:bg-[#e9edff]"
               >
                 Đơn hàng của tôi
               </Link>
               <Link
                 href="/account/addresses"
                 onClick={() => setOpen(false)}
-                className="py-4 text-sm font-semibold"
+                className="flex min-h-11 items-center rounded-xl bg-mist px-3 text-sm font-bold text-navy transition active:bg-[#e9edff]"
               >
                 Địa chỉ giao hàng
+              </Link>
+              <Link
+                href="/products?favorites=1"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center rounded-xl bg-mist px-3 text-sm font-bold text-navy transition active:bg-[#e9edff]"
+              >
+                Sản phẩm yêu thích
               </Link>
             </nav>
           </div>

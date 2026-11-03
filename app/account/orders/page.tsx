@@ -86,5 +86,17 @@ async function OrderSession() {
       </section>
     );
   }
-  return <CustomerOrderHistory orders={result.data} />;
+  return (
+    <>
+      {result.notice && (
+        <p
+          role="status"
+          className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
+        >
+          {result.notice}
+        </p>
+      )}
+      <CustomerOrderHistory orders={result.data} />
+    </>
+  );
 }

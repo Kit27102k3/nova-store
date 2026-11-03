@@ -41,6 +41,10 @@ export type AdminOrder = {
   shipping_fee: number;
   total: number;
   created_at: string;
+  ghn_order_code: string | null;
+  shipping_status: string | null;
+  shipping_status_label: string | null;
+  shipping_tracking_url: string | null;
   items: AdminOrderItem[];
 };
 
@@ -187,6 +191,10 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
     shipping_fee: Number(row.shipping_fee),
     total: Number(row.total),
     created_at: row.created_at,
+    ghn_order_code: row.ghn_order_code ?? null,
+    shipping_status: row.shipping_status ?? null,
+    shipping_status_label: row.shipping_status_label ?? null,
+    shipping_tracking_url: row.shipping_tracking_url ?? null,
     items: [],
   }));
 

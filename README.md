@@ -45,8 +45,18 @@ Trang quản trị nằm tại `/admin`. Tạo tài khoản quản trị trong S
 
 Không có tài khoản hoặc mật khẩu mặc định được nhúng trong ứng dụng. Đăng nhập admin dùng Supabase Auth; chỉ email trùng `ADMIN_EMAIL` được phép xem dashboard. Để bật quyền đọc/ghi quản trị, đặt `SUPABASE_SERVICE_ROLE_KEY` bằng secret/service-role key của Supabase trong môi trường server; tuyệt đối không dùng tiền tố `NEXT_PUBLIC_` hoặc đưa key này vào client. Dashboard hỗ trợ quản lý sản phẩm, ảnh, giá, biến thể, tồn kho, trạng thái hiển thị, danh mục, chi tiết và trạng thái đơn hàng, khách hàng cùng cài đặt vận chuyển. Đơn đặt hàng được lưu vào Supabase, giá/tồn kho được xác minh phía server và tồn kho được hoàn lại khi hủy đơn. Chỉ triển khai HTTPS và bảo vệ secret key như thông tin xác thực đặc quyền.
 
-Khách hàng có thể cập nhật hồ sơ, lưu nhiều địa chỉ riêng tư, đồng bộ yêu thích khi đăng nhập, xem đơn hàng đã đặt bằng tài khoản và hủy đơn đang chờ xác nhận. Checkout tự điền email và địa chỉ mặc định; khách vãng lai vẫn đặt COD được nhưng cần đăng nhập để xem lịch sử đơn. Nếu bảng địa chỉ chưa được tạo, sổ địa chỉ tạm lưu trên trình duyệt hiện tại cho đến khi chạy migration `20261102000000_customer_features.sql`. Newsletter lưu email đăng ký vào Supabase. Biểu mẫu liên hệ mở ứng dụng email của khách thay vì giả vờ gửi yêu cầu từ máy chủ.
+Khách hàng có thể cập nhật hồ sơ, lưu nhiều địa chỉ riêng tư, đồng bộ yêu thích khi đăng nhập, xem đơn hàng đã đặt bằng tài khoản và hủy đơn đang chờ xác nhận. Trang đơn hàng hiển thị lịch sử trạng thái và mã tra cứu GHN khi cửa hàng cập nhật. Checkout tự điền email và địa chỉ mặc định; khách vãng lai vẫn đặt COD được nhưng cần đăng nhập để xem lịch sử đơn. Nếu bảng địa chỉ chưa được tạo, sổ địa chỉ tạm lưu trên trình duyệt hiện tại cho đến khi chạy migration `20261102000000_customer_features.sql`. Newsletter lưu email đăng ký vào Supabase. Biểu mẫu liên hệ mở ứng dụng email của khách thay vì giả vờ gửi yêu cầu từ máy chủ.
 
 Biểu mẫu địa chỉ và checkout hỗ trợ tra cứu địa chỉ, chọn/kéo ghim trên bản đồ OpenStreetMap và lấy vị trí hiện tại qua quyền định vị của trình duyệt. Tra cứu địa chỉ dùng Photon (dữ liệu OpenStreetMap), không cần API key; người dùng được thông báo truy vấn/tọa độ sẽ được gửi tới dịch vụ này. Định vị trên trình duyệt cần HTTPS (hoặc localhost).
 
-Thanh toán thẻ và gửi email liên hệ chưa được kết nối; checkout hiện tạo đơn COD (thanh toán khi nhận hàng).
+Checkout hiện tạo đơn COD (thanh toán khi nhận hàng). Tích hợp vận chuyển dùng mã vận đơn GHN: tạo vận đơn trong hệ thống GHN, nhập mã tại `/admin` → Đơn hàng → Chi tiết; ứng dụng dùng GHN API để cập nhật trạng thái và trang tra cứu cho khách. Ứng dụng không tự tạo vận đơn GHN.
+
+### Theo dõi GHN và email trạng thái đơn
+
+1. Chạy migration `supabase/migrations/20261103000000_order_tracking_notifications.sql` sau các migration hiện có.
+2. Thêm `GHN_TOKEN`, `GHN_SHOP_ID` và `GHN_API_URL` vào môi trường server. Không dùng tiền tố `NEXT_PUBLIC_` cho thông tin xác thực.
+3. Cấu hình SMTP bằng `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` và `SMTP_FROM`. Không gửi các giá trị bí mật qua chat hoặc commit vào Git.
+4. Tạo `CRON_SECRET` ngẫu nhiên có ít nhất 32 ký tự và cấu hình scheduler của máy chủ gọi `POST /api/cron/shipping-sync` định kỳ (khuyến nghị mỗi 5–10 phút), gửi header `Authorization: Bearer <CRON_SECRET>`. Endpoint đồng bộ tối đa 100 vận đơn và xử lý tối đa 50 email mỗi lượt; gọi lại để xử lý phần còn lại.
+5. Khởi động lại ứng dụng sau khi cập nhật biến môi trường. Khi chưa cấu hình SMTP, lịch sử vẫn được lưu và email ở trạng thái chờ; sau khi cấu hình, scheduler sẽ gửi lại các email đang chờ. Email lỗi được thử lại tối đa 5 lần.
+
+Để thử thủ công trên máy local, gửi `POST` đến `http://localhost:3000/api/cron/shipping-sync` với header `Authorization: Bearer <CRON_SECRET>`. Endpoint chỉ hoạt động khi `CRON_SECRET` đã được cấu hình đúng.
