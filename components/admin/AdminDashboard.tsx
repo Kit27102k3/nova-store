@@ -13,7 +13,7 @@ import {
   type AdminMutationResult,
 } from "@/app/actions/admin-data";
 import { adminLogout } from "@/app/actions/admin";
-import { categories as sampleCategories, formatPrice, products as sampleProducts } from "@/data/products";
+import { formatPrice } from "@/data/products";
 import type {
   AdminCategory,
   AdminDashboardData,
@@ -51,121 +51,17 @@ const statusLabels: Record<AdminOrder["status"], string> = {
   completed: "Hoàn thành",
   cancelled: "Đã hủy",
 };
-const statusClasses: Record<AdminOrder["status"], string> = {
-  pending: "bg-[#fff4d8] text-[#8b6735]",
-  confirmed: "bg-[#f1f2ff] text-cobalt",
-  shipping: "bg-[#eef0ff] text-[#5552c7]",
-  completed: "bg-[#eaf7f2] text-[#18795e]",
-  cancelled: "bg-[#fff0ec] text-[#c25445]",
-};
 const inputClass =
   "mt-2 h-11 w-full rounded-lg border border-line bg-white px-3 text-sm font-normal text-navy outline-none focus:border-cobalt";
 const textAreaClass =
   "mt-2 min-h-24 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm font-normal text-navy outline-none focus:border-cobalt";
 
-function demoData(): AdminDashboardData {
-  const categories: AdminCategory[] = sampleCategories.map((category, index) => ({
-    id: index + 1,
-    ...category,
-    slug: ["thoi-trang", "phu-kien", "cong-nghe", "doi-song"][index],
-  }));
-  return {
-    categories,
-    products: sampleProducts.map((product) => ({
-      ...product,
-      categoryId:
-        categories.find((category) => category.name === product.category)?.id ?? 1,
-      inventory: 20,
-      isActive: true,
-    })),
-    orders: [
-      {
-        id: 1048,
-        order_number: "NV-1048",
-        customer_id: null,
-        customer_name: "Minh Anh",
-        customer_email: "minhanh@example.com",
-        customer_phone: "0900001048",
-        address: "12 Nguyễn Huệ",
-        district: "Quận 1",
-        city: "TP. Hồ Chí Minh",
-        status: "pending",
-        subtotal: 2180000,
-        shipping_fee: 0,
-        total: 2180000,
-        created_at: "2026-10-30T09:00:00.000Z",
-        items: [{ product_name: "Áo khoác Torrence", variant: "M", unit_price: 1090000, quantity: 2 }],
-      },
-      {
-        id: 1047,
-        order_number: "NV-1047",
-        customer_id: null,
-        customer_name: "Hoàng Nam",
-        customer_email: "hoangnam@example.com",
-        customer_phone: "0900001047",
-        address: "25 Lê Lợi",
-        district: "Quận 1",
-        city: "TP. Hồ Chí Minh",
-        status: "shipping",
-        subtotal: 1790000,
-        shipping_fee: 0,
-        total: 1790000,
-        created_at: "2026-10-29T09:00:00.000Z",
-        items: [{ product_name: "Giày sneaker Form 02", variant: "40", unit_price: 1790000, quantity: 1 }],
-      },
-      {
-        id: 1046,
-        order_number: "NV-1046",
-        customer_id: null,
-        customer_name: "Thu Hà",
-        customer_email: "thuha@example.com",
-        customer_phone: "0900001046",
-        address: "8 Trần Phú",
-        district: "Hải Châu",
-        city: "Đà Nẵng",
-        status: "completed",
-        subtotal: 890000,
-        shipping_fee: 0,
-        total: 890000,
-        created_at: "2026-10-29T08:00:00.000Z",
-        items: [{ product_name: "Túi đeo vai Arc", variant: null, unit_price: 890000, quantity: 1 }],
-      },
-      {
-        id: 1045,
-        order_number: "NV-1045",
-        customer_id: null,
-        customer_name: "Gia Bảo",
-        customer_email: "giabao@example.com",
-        customer_phone: "0900001045",
-        address: "16 Hai Bà Trưng",
-        district: "Hoàn Kiếm",
-        city: "Hà Nội",
-        status: "completed",
-        subtotal: 2490000,
-        shipping_fee: 0,
-        total: 2490000,
-        created_at: "2026-10-28T08:00:00.000Z",
-        items: [{ product_name: "Tai nghe Studio S1", variant: null, unit_price: 2490000, quantity: 1 }],
-      },
-    ],
-    customers: [
-      { id: "demo-minhanh", name: "Minh Anh", email: "minhanh@example.com", orders: 5, spent: 6450000, createdAt: "2026-10-20T08:00:00.000Z" },
-      { id: "demo-hoangnam", name: "Hoàng Nam", email: "hoangnam@example.com", orders: 3, spent: 4280000, createdAt: "2026-10-18T08:00:00.000Z" },
-      { id: "demo-thuha", name: "Thu Hà", email: "thuha@example.com", orders: 2, spent: 1790000, createdAt: "2026-10-17T08:00:00.000Z" },
-      { id: "demo-giabao", name: "Gia Bảo", email: "giabao@example.com", orders: 4, spent: 8120000, createdAt: "2026-10-15T08:00:00.000Z" },
-    ],
-    settings: emptySettings,
-  };
-}
-
 export function AdminDashboard({
   email,
-  preview = false,
   data,
   loadError,
 }: {
   email: string;
-  preview?: boolean;
   data: AdminDashboardData | null;
   loadError?: string | null;
 }) {
@@ -176,7 +72,7 @@ export function AdminDashboard({
   const [editingCategory, setEditingCategory] = useState<number | null>(null);
   const [notice, setNotice] = useState<AdminMutationResult | null>(null);
   const [pending, startTransition] = useTransition();
-  const dashboard = data ?? (preview ? demoData() : null);
+  const dashboard = data ?? null;
   const categories = dashboard?.categories ?? emptyCategories;
   const products = dashboard?.products ?? emptyProducts;
   const orders = dashboard?.orders ?? emptyOrders;
@@ -243,7 +139,7 @@ export function AdminDashboard({
     label: string,
     afterSuccess?: () => void,
   ) => {
-    if (preview || !window.confirm(`Bạn có chắc muốn xóa ${label}?`)) return;
+    if (!window.confirm(`Bạn có chắc muốn xóa ${label}?`)) return;
     const formData = new FormData();
     formData.set("id", String(id));
     runAction(action, formData, afterSuccess);
@@ -303,13 +199,9 @@ export function AdminDashboard({
             ))}
           </nav>
           <div className="mt-auto rounded-2xl bg-[#f0f1ff] p-4">
-            <p className="text-xs font-extrabold text-navy">
-              {preview ? "Chế độ xem trước" : "Dữ liệu cửa hàng"}
-            </p>
+            <p className="text-xs font-extrabold text-navy">Dữ liệu cửa hàng</p>
             <p className="mt-2 text-xs leading-5 text-muted">
-              {preview
-                ? "Đây là dữ liệu mẫu chỉ xem, không lưu thay đổi."
-                : `${products.length} sản phẩm · ${orders.length} đơn hàng · ${customers.length} khách hàng`}
+              {`${products.length} sản phẩm · ${orders.length} đơn hàng · ${customers.length} khách hàng`}
             </p>
           </div>
         </aside>
@@ -325,23 +217,13 @@ export function AdminDashboard({
                   ? "Tổng quan cửa hàng"
                   : activeSectionLabel}
               </h1>
-              <p className="mt-2 text-sm text-muted">
-                {preview
-                  ? "Chế độ xem trước · Dữ liệu mẫu, chưa xác thực"
-                  : `Chào mừng trở lại, ${email}`}
-              </p>
+              <p className="mt-2 text-sm text-muted">Chào mừng trở lại, {email}</p>
             </div>
-            {preview ? (
-              <span className="w-fit rounded-full bg-[#fff4d8] px-4 py-2.5 text-xs font-extrabold text-[#8b6735]">
-                DEMO · CHỈ XEM
-              </span>
-            ) : (
-              <form action={adminLogout}>
-                <button className="rounded-full border border-line px-4 py-2.5 text-sm font-bold text-navy transition hover:border-coral hover:text-coral">
-                  Đăng xuất
-                </button>
-              </form>
-            )}
+            <form action={adminLogout}>
+              <button className="rounded-full border border-line px-4 py-2.5 text-sm font-bold text-navy transition hover:border-coral hover:text-coral">
+                Đăng xuất
+              </button>
+            </form>
           </header>
 
           {loadError && (
@@ -404,7 +286,6 @@ export function AdminDashboard({
                 </div>
                 <OrderTable
                   orders={orders.slice(0, 5)}
-                  preview={preview}
                   pending={pending}
                   runForm={runForm}
                 />
@@ -417,7 +298,6 @@ export function AdminDashboard({
               <ProductEditor
                 categories={categories}
                 product={editingProduct === null ? null : products.find((item) => item.id === editingProduct) ?? null}
-                preview={preview}
                 pending={pending}
                 onSubmit={(event) =>
                   runForm(event, saveAdminProduct, () => setEditingProduct(null))
@@ -465,12 +345,10 @@ export function AdminDashboard({
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-3">
-                              {!preview && (
-                                <>
-                                  <button type="button" onClick={() => setEditingProduct(product.id)} className="text-xs font-extrabold text-cobalt hover:underline">Sửa</button>
-                                  <button type="button" disabled={pending} onClick={() => runDelete(deleteAdminProduct, product.id, `sản phẩm “${product.name}”`)} className="text-xs font-extrabold text-coral hover:underline disabled:opacity-50">Xóa</button>
-                                </>
-                              )}
+                              <>
+                                <button type="button" onClick={() => setEditingProduct(product.id)} className="text-xs font-extrabold text-cobalt hover:underline">Sửa</button>
+                                <button type="button" disabled={pending} onClick={() => runDelete(deleteAdminProduct, product.id, `sản phẩm “${product.name}”`)} className="text-xs font-extrabold text-coral hover:underline disabled:opacity-50">Xóa</button>
+                              </>
                               <Link href={`/products/${product.slug}`} className="text-xs font-extrabold text-muted hover:underline">Xem</Link>
                             </div>
                           </td>
@@ -490,7 +368,6 @@ export function AdminDashboard({
                 categories={categories}
                 products={products}
                 category={editingCategory === null ? null : categories.find((item) => item.id === editingCategory) ?? null}
-                preview={preview}
                 pending={pending}
                 onSubmit={(event) =>
                   runForm(event, saveAdminCategory, () => setEditingCategory(null))
@@ -516,7 +393,6 @@ export function AdminDashboard({
               </div>
               <OrderTable
                 orders={filteredOrders}
-                preview={preview}
                 pending={pending}
                 runForm={runForm}
               />
@@ -564,23 +440,23 @@ export function AdminDashboard({
               <form onSubmit={(event) => runForm(event, saveAdminSettings)} className="mt-6 grid gap-5">
                 <label className="text-sm font-bold text-navy">
                   Tên cửa hàng
-                  <input name="storeName" required minLength={2} maxLength={120} defaultValue={settings.store_name} className={inputClass} disabled={preview || pending} />
+                  <input name="storeName" required minLength={2} maxLength={120} defaultValue={settings.store_name} className={inputClass} disabled={pending} />
                 </label>
                 <label className="text-sm font-bold text-navy">
                   Email hỗ trợ
-                  <input name="supportEmail" type="email" required defaultValue={settings.support_email} className={inputClass} disabled={preview || pending} />
+                  <input name="supportEmail" type="email" required defaultValue={settings.support_email} className={inputClass} disabled={pending} />
                 </label>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <label className="text-sm font-bold text-navy">
                     Miễn phí vận chuyển từ (đ)
-                    <input name="shippingThreshold" type="number" min={0} step={1} required defaultValue={settings.shipping_threshold} className={inputClass} disabled={preview || pending} />
+                    <input name="shippingThreshold" type="number" min={0} step={1} required defaultValue={settings.shipping_threshold} className={inputClass} disabled={pending} />
                   </label>
                   <label className="text-sm font-bold text-navy">
                     Phí vận chuyển (đ)
-                    <input name="shippingFee" type="number" min={0} step={1} required defaultValue={settings.shipping_fee} className={inputClass} disabled={preview || pending} />
+                    <input name="shippingFee" type="number" min={0} step={1} required defaultValue={settings.shipping_fee} className={inputClass} disabled={pending} />
                   </label>
                 </div>
-                {!preview && <button disabled={pending} className="h-11 w-fit rounded-full bg-navy px-6 text-sm font-bold text-white hover:bg-cobalt disabled:opacity-50">{pending ? "Đang lưu..." : "Lưu cài đặt"}</button>}
+                <button disabled={pending} className="h-11 w-fit rounded-full bg-navy px-6 text-sm font-bold text-white hover:bg-cobalt disabled:opacity-50">{pending ? "Đang lưu..." : "Lưu cài đặt"}</button>
               </form>
             </section>
           )}
@@ -593,33 +469,41 @@ export function AdminDashboard({
 function ProductEditor({
   categories,
   product,
-  preview,
   pending,
   onSubmit,
   onCancel,
 }: {
   categories: AdminCategory[];
   product: AdminProduct | null;
-  preview: boolean;
   pending: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const editing = Boolean(product);
-  if (preview) return null;
   return (
     <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionHeading title={editing ? "Chỉnh sửa sản phẩm" : "Quản lý sản phẩm"} detail={editing ? product?.name ?? "" : "Tạo mới hoặc cập nhật nội dung, giá và tồn kho"} />
+        <SectionHeading
+          title={editing ? "Chỉnh sửa sản phẩm" : "Quản lý sản phẩm"}
+          detail={editing ? product?.name ?? "" : "Tạo mới hoặc cập nhật nội dung, giá và tồn kho"}
+        />
         {!editing && (
-          <button type="button" onClick={() => setOpen(!open)} className="h-10 rounded-full bg-navy px-5 text-sm font-bold text-white hover:bg-cobalt">
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="h-10 rounded-full bg-navy px-5 text-sm font-bold text-white hover:bg-cobalt"
+          >
             {open ? "Đóng biểu mẫu" : "＋ Thêm sản phẩm"}
           </button>
         )}
       </div>
       {(open || editing) && (
-        <form key={product?.id ?? "new-product"} onSubmit={onSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
+        <form
+          key={product?.id ?? "new-product"}
+          onSubmit={onSubmit}
+          className="mt-6 grid gap-4 sm:grid-cols-2"
+        >
           {product && <input type="hidden" name="id" value={product.id} />}
           <label className="text-sm font-bold text-navy">Tên sản phẩm<input name="name" required minLength={2} maxLength={160} defaultValue={product?.name ?? ""} className={inputClass} disabled={pending} /></label>
           <label className="text-sm font-bold text-navy">Slug<input name="slug" placeholder="Tự tạo từ tên nếu để trống" defaultValue={product?.slug ?? ""} className={inputClass} disabled={pending} /></label>
@@ -652,7 +536,6 @@ function CategoryEditor({
   categories,
   products,
   category,
-  preview,
   pending,
   onSubmit,
   onCancel,
@@ -662,7 +545,6 @@ function CategoryEditor({
   categories: AdminCategory[];
   products: AdminProduct[];
   category: AdminCategory | null;
-  preview: boolean;
   pending: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
@@ -670,9 +552,6 @@ function CategoryEditor({
   onDelete: (category: AdminCategory) => void;
 }) {
   const [open, setOpen] = useState(false);
-  if (preview) {
-    return <section className="rounded-2xl border border-line bg-white p-5 sm:p-6"><SectionHeading title="Danh mục sản phẩm" detail={`${categories.length} danh mục`} /><CategoryCards categories={categories} products={products} /></section>;
-  }
   return (
     <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -742,12 +621,10 @@ function CategoryCards({
 
 function OrderTable({
   orders,
-  preview,
   pending,
   runForm,
 }: {
   orders: AdminOrder[];
-  preview: boolean;
   pending: boolean;
   runForm: (event: FormEvent<HTMLFormElement>, action: Mutation) => void;
 }) {
@@ -760,7 +637,7 @@ function OrderTable({
         </thead>
         <tbody className="divide-y divide-line">
           {orders.map((order) => (
-            <FragmentOrderRow key={order.id} order={order} expanded={expanded === order.id} preview={preview} pending={pending} onToggle={() => setExpanded(expanded === order.id ? null : order.id)} onSubmit={runForm} />
+            <FragmentOrderRow key={order.id} order={order} expanded={expanded === order.id} pending={pending} onToggle={() => setExpanded(expanded === order.id ? null : order.id)} onSubmit={runForm} />
           ))}
           {orders.length === 0 && <EmptyRow colSpan={5} text="Chưa có đơn hàng nào." />}
         </tbody>
@@ -772,14 +649,12 @@ function OrderTable({
 function FragmentOrderRow({
   order,
   expanded,
-  preview,
   pending,
   onToggle,
   onSubmit,
 }: {
   order: AdminOrder;
   expanded: boolean;
-  preview: boolean;
   pending: boolean;
   onToggle: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>, action: Mutation) => void;
@@ -795,17 +670,13 @@ function FragmentOrderRow({
         <td className="px-4 py-4 text-sm text-muted">{formatDate(order.created_at)}</td>
         <td className="px-4 py-4 text-sm font-bold text-navy">{formatPrice(order.total)}</td>
         <td className="px-4 py-4">
-          {preview ? (
-            <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClasses[order.status]}`}>{statusLabels[order.status]}</span>
-          ) : (
-            <form onSubmit={(event) => onSubmit(event, updateAdminOrderStatus)} className="flex items-center gap-2">
-              <input type="hidden" name="id" value={order.id} />
-              <select name="status" defaultValue={order.status} disabled={pending || ["completed", "cancelled"].includes(order.status)} aria-label={`Trạng thái đơn ${order.order_number}`} className="h-9 rounded-lg border border-line bg-white px-2 text-xs font-semibold text-navy disabled:opacity-70">
-                {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-              {!["completed", "cancelled"].includes(order.status) && <button disabled={pending} className="text-xs font-bold text-cobalt disabled:opacity-50">Lưu</button>}
-            </form>
-          )}
+          <form onSubmit={(event) => onSubmit(event, updateAdminOrderStatus)} className="flex items-center gap-2">
+            <input type="hidden" name="id" value={order.id} />
+            <select name="status" defaultValue={order.status} disabled={pending || ["completed", "cancelled"].includes(order.status)} aria-label={`Trạng thái đơn ${order.order_number}`} className="h-9 rounded-lg border border-line bg-white px-2 text-xs font-semibold text-navy disabled:opacity-70">
+              {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            {!['completed', 'cancelled'].includes(order.status) && <button disabled={pending} className="text-xs font-bold text-cobalt disabled:opacity-50">Lưu</button>}
+          </form>
         </td>
         <td className="px-6 py-4 text-right">
           <button type="button" onClick={onToggle} aria-expanded={expanded} className="text-xs font-bold text-cobalt hover:underline">{expanded ? "Thu gọn" : "Chi tiết"}</button>

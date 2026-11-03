@@ -19,7 +19,7 @@ import type { CustomerAddress } from "@/lib/supabase/customer";
 import { Icon } from "@/components/ui/Icon";
 
 const fieldClass =
-  "mt-2 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-normal text-navy outline-none focus:border-cobalt";
+  "mt-2 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm font-normal text-navy outline-none transition focus:border-cobalt focus:ring-4 focus:ring-cobalt/10";
 
 function isCustomerAddress(value: unknown): value is CustomerAddress {
   if (!value || typeof value !== "object") return false;
@@ -209,11 +209,11 @@ export function AddressBook({
   };
 
   return (
-    <div className="mt-8">
+    <div className="mt-5">
       {notice && (
         <p
           role="status"
-          className="mb-5 rounded-xl border border-coral/30 bg-coral/10 p-4 text-sm leading-6 text-navy"
+          className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"
         >
           {notice}
         </p>
@@ -221,7 +221,7 @@ export function AddressBook({
       {message && (
         <p
           role={message.success ? "status" : "alert"}
-          className={`mb-5 rounded-xl border p-4 text-sm ${
+          className={`mb-4 rounded-xl border p-4 text-sm ${
             message.success
               ? "border-[#18795e]/20 bg-[#eaf7f2] text-[#18795e]"
               : "border-coral/40 bg-coral/10 text-navy"
@@ -235,7 +235,7 @@ export function AddressBook({
           type="button"
           onClick={() => edit(null)}
           disabled={!storageReady}
-          className="mb-5 inline-flex h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white transition hover:bg-cobalt"
+          className="mb-4 inline-flex h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-extrabold text-white shadow-[0_8px_24px_-12px_rgba(49,92,255,0.8)] transition hover:bg-cobalt disabled:opacity-50"
         >
           <Icon name="plus" className="size-4" />
           Thêm địa chỉ mới
@@ -246,12 +246,12 @@ export function AddressBook({
         <form
           key={editing?.id ?? "new-address"}
           onSubmit={submit}
-          className="mb-6 rounded-[28px] border border-line bg-white p-6 shadow-soft sm:p-8"
+          className="mb-5 rounded-2xl border border-[#dfe2f1] bg-white p-5 shadow-[0_18px_45px_-30px_rgba(49,92,255,0.4)] sm:p-6"
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="section-kicker">Sổ địa chỉ</p>
-              <h2 className="font-display text-2xl text-navy">
+              <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-cobalt">Sổ địa chỉ</p>
+              <h2 className="mt-1 font-sans text-xl font-extrabold text-navy">
                 {editing ? "Chỉnh sửa địa chỉ" : "Thêm địa chỉ nhận hàng"}
               </h2>
             </div>
@@ -262,17 +262,19 @@ export function AddressBook({
                 setEditing(null);
               }}
               aria-label="Đóng biểu mẫu"
-              className="grid size-9 place-items-center rounded-full border border-line text-muted hover:text-navy"
+              className="grid size-9 place-items-center rounded-full border border-line bg-white text-lg text-muted transition hover:border-coral hover:bg-coral hover:text-white"
             >
               ×
             </button>
           </div>
           {editing && <input type="hidden" name="id" value={editing.id} />}
-          <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
-            <AddressPicker
-              key={editing?.id ?? "new-address"}
-              onSelect={chooseDeliveryAddress}
-            />
+          <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+            <div className="overflow-hidden rounded-xl border border-[#e5e7f2] bg-[#f7f8ff] p-3 sm:p-4">
+              <AddressPicker
+                key={editing?.id ?? "new-address"}
+                onSelect={chooseDeliveryAddress}
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-semibold text-navy">
                 Tên gợi nhớ
@@ -368,12 +370,13 @@ export function AddressBook({
                   disabled={pending}
                 />
               </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-navy sm:col-span-2">
+              <label className="flex items-center gap-3 rounded-xl border border-[#e4e6f3] bg-gradient-to-r from-[#f3f4ff] to-[#f8fff0] px-4 py-3 text-sm font-bold text-navy sm:col-span-2">
                 <input
                   type="checkbox"
                   name="isDefault"
                   defaultChecked={editing?.is_default ?? addresses.length === 0}
                   disabled={pending}
+                  className="size-4 accent-cobalt"
                 />
                 Đặt làm địa chỉ mặc định
               </label>
@@ -382,7 +385,7 @@ export function AddressBook({
           <div className="mt-5 flex flex-wrap gap-3">
             <button
               disabled={pending}
-              className="h-11 rounded-full bg-navy px-6 text-sm font-bold text-white hover:bg-cobalt disabled:opacity-50"
+              className="h-11 rounded-full bg-cobalt px-6 text-sm font-extrabold text-white shadow-sm transition hover:bg-navy disabled:opacity-50"
             >
               {pending
                 ? "Đang lưu..."
@@ -396,7 +399,7 @@ export function AddressBook({
                 setOpen(false);
                 setEditing(null);
               }}
-              className="h-11 rounded-full border border-line px-6 text-sm font-bold text-navy"
+              className="h-11 rounded-full border border-line px-6 text-sm font-bold text-navy transition hover:bg-mist"
             >
               Hủy
             </button>
@@ -407,14 +410,14 @@ export function AddressBook({
       {!storageReady ? (
         <div
           aria-label="Đang tải địa chỉ đã lưu"
-          className="h-48 animate-pulse rounded-[28px] bg-mist"
+          className="h-40 animate-pulse rounded-2xl bg-mist"
         />
       ) : addresses.length === 0 && !open ? (
-        <section className="rounded-[28px] border border-dashed border-line bg-white px-6 py-12 text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-mist text-cobalt">
+        <section className="rounded-2xl border border-dashed border-[#cfd4ef] bg-gradient-to-br from-white to-[#f3f4ff] px-6 py-9 text-center">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[linear-gradient(140deg,#315cff,#6d5dfc)] text-white shadow-lg shadow-cobalt/20">
             <Icon name="truck" className="size-6" />
           </div>
-          <h2 className="mt-5 font-display text-2xl text-navy">
+          <h2 className="mt-4 font-sans text-xl font-extrabold text-navy">
             Chưa có địa chỉ giao hàng
           </h2>
           <p className="mt-2 text-sm text-muted">
@@ -422,49 +425,55 @@ export function AddressBook({
           </p>
         </section>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {addresses.map((address) => (
             <article
               key={address.id}
-              className="rounded-[28px] border border-line bg-white p-6 shadow-soft"
+              className={`overflow-hidden rounded-xl border bg-white shadow-[0_14px_36px_-28px_rgba(17,24,39,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-26px_rgba(49,92,255,0.35)] ${
+                address.is_default
+                  ? "border-cobalt/40 ring-1 ring-cobalt/10"
+                  : "border-[#e5e7f0]"
+              }`}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="grid size-11 place-items-center rounded-2xl bg-coral/10 text-coral">
-                  <Icon name="user" className="size-5" />
+              <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-[#f1f3ff] via-white to-[#fff3ee] px-4 py-3">
+                <div className="grid size-9 place-items-center rounded-lg bg-coral text-white shadow-sm shadow-coral/25">
+                  <Icon name="user" className="size-4" />
                 </div>
                 {address.is_default && (
-                  <span className="rounded-full bg-lime/60 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-navy">
+                  <span className="rounded-full bg-[#dfff00] px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider text-navy shadow-sm">
                     Mặc định
                   </span>
                 )}
               </div>
-              <h2 className="mt-5 font-display text-2xl text-navy">
-                {address.label}
-              </h2>
-              <div className="mt-3 rounded-2xl bg-mist/80 p-4 text-sm leading-6 text-muted">
-                <p className="font-bold text-navy">{address.recipient_name}</p>
-                <p>{address.phone}</p>
-                <p className="mt-2">
-                  {address.street}, {address.district}, {address.city}
-                </p>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-4 border-t border-line pt-4">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => edit(address)}
-                  className="text-sm font-bold text-cobalt hover:underline"
-                >
-                  Chỉnh sửa
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => remove(address)}
-                  className="text-sm font-bold text-coral hover:underline"
-                >
-                  Xóa
-                </button>
+              <div className="p-4">
+                <h2 className="font-sans text-base font-extrabold text-navy">
+                  {address.label}
+                </h2>
+                <div className="mt-2.5 min-h-28 rounded-lg border border-[#e7e9f2] bg-[#fafbff] p-3 text-xs leading-5 text-muted">
+                  <p className="font-bold text-navy">{address.recipient_name}</p>
+                  <p>{address.phone}</p>
+                  <p className="mt-2 break-words text-navy/80">
+                    {address.street}, {address.district}, {address.city}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => edit(address)}
+                    className="h-8 rounded-lg border border-cobalt/25 px-3 text-[11px] font-extrabold text-cobalt transition hover:bg-cobalt hover:text-white disabled:opacity-50"
+                  >
+                    Chỉnh sửa
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => remove(address)}
+                    className="h-8 rounded-lg border border-coral/25 px-3 text-[11px] font-extrabold text-coral transition hover:bg-coral hover:text-white disabled:opacity-50"
+                  >
+                    Xóa
+                  </button>
+                </div>
               </div>
             </article>
           ))}

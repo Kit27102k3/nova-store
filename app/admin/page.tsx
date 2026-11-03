@@ -33,15 +33,7 @@ async function AdminSession({
   searchParams,
 }: Pick<PageProps<"/admin">, "searchParams">) {
   await connection();
-  const params = await searchParams;
-  const previewAvailable = process.env.NODE_ENV === "development";
-  if (previewAvailable && params.preview === "1") {
-    return (
-      <AdminShell>
-        <AdminDashboard email="Bản xem trước" preview data={null} />
-      </AdminShell>
-    );
-  }
+  void searchParams;
 
   const configured = Boolean(getSupabaseConfig());
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? "";
@@ -49,11 +41,7 @@ async function AdminSession({
   if (!configured || !adminEmail) {
     return (
       <AdminShell>
-        <AdminLoginForm
-          adminEmail={adminEmail}
-          configured={configured}
-          previewAvailable={previewAvailable}
-        />
+        <AdminLoginForm adminEmail={adminEmail} configured={configured} />
       </AdminShell>
     );
   }
@@ -83,7 +71,6 @@ async function AdminSession({
         adminEmail={adminEmail}
         configured
         unauthorized={Boolean(data.user)}
-        previewAvailable={previewAvailable}
       />
     </AdminShell>
   );

@@ -19,7 +19,7 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="relative aspect-[4/5] overflow-hidden rounded-[18px] bg-mist">
         <Link
           href={`/products/${product.slug}`}
-          className="block h-full"
+          className="relative block h-full"
           aria-label={`Xem ${product.name}`}
         >
           <Image

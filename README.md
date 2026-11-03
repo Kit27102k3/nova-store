@@ -49,6 +49,4 @@ Khách hàng có thể cập nhật hồ sơ, lưu nhiều địa chỉ riêng t
 
 Biểu mẫu địa chỉ và checkout hỗ trợ tra cứu địa chỉ, chọn/kéo ghim trên bản đồ OpenStreetMap và lấy vị trí hiện tại qua quyền định vị của trình duyệt. Tra cứu địa chỉ dùng Photon (dữ liệu OpenStreetMap), không cần API key; người dùng được thông báo truy vấn/tọa độ sẽ được gửi tới dịch vụ này. Định vị trên trình duyệt cần HTTPS (hoặc localhost).
 
-Khi chạy local với `npm run dev`, có thể mở `/admin?preview=1` để xem dashboard mẫu mà không cần đăng nhập. Chế độ này chỉ có trong môi trường phát triển và không cấp quyền truy cập dữ liệu hay chức năng quản trị thật.
-
 Thanh toán thẻ và gửi email liên hệ chưa được kết nối; checkout hiện tạo đơn COD (thanh toán khi nhận hàng).

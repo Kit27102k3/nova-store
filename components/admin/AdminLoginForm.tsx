@@ -1,21 +1,18 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
 import { adminLogin } from "@/app/actions/admin";
 
 type AdminLoginFormProps = {
   adminEmail: string;
   configured: boolean;
   unauthorized?: boolean;
-  previewAvailable: boolean;
 };
 
 export function AdminLoginForm({
   adminEmail,
   configured,
   unauthorized = false,
-  previewAvailable,
 }: AdminLoginFormProps) {
   const [state, action, pending] = useActionState(adminLogin, null);
 
@@ -103,14 +100,6 @@ export function AdminLoginForm({
       <p className="mt-5 text-xs leading-5 text-muted">
         Mật khẩu được Supabase Auth quản lý, không lưu trong mã nguồn.
       </p>
-      {previewAvailable && (
-        <Link
-          href="/admin?preview=1"
-          className="mt-5 flex h-11 items-center justify-center rounded-xl border border-cobalt/20 bg-[#f1f2ff] text-sm font-bold text-cobalt transition hover:bg-[#e8eaff]"
-        >
-          Xem giao diện demo, không cần đăng nhập
-        </Link>
-      )}
     </section>
   );
 }
