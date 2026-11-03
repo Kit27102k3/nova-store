@@ -37,6 +37,8 @@ export type AdminOrder = {
   district: string;
   city: string;
   status: "pending" | "confirmed" | "shipping" | "completed" | "cancelled";
+  payment_method: "cod" | "vnpay";
+  payment_status: "unpaid" | "pending" | "paid" | "failed" | "cancelled";
   subtotal: number;
   shipping_fee: number;
   total: number;
@@ -187,6 +189,8 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
     district: row.district,
     city: row.city,
     status: row.status,
+    payment_method: row.payment_method === "vnpay" ? "vnpay" : "cod",
+    payment_status: row.payment_status ?? "unpaid",
     subtotal: Number(row.subtotal),
     shipping_fee: Number(row.shipping_fee),
     total: Number(row.total),

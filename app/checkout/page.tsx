@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { CheckoutView } from "@/components/cart/CheckoutView";
 import { getCheckoutCustomerDetails } from "@/lib/supabase/customer";
@@ -22,6 +23,7 @@ export default function CheckoutPage() {
 }
 
 async function CheckoutSession() {
+  await connection();
   const customer = await getCheckoutCustomerDetails();
   return <CheckoutView customer={customer} />;
 }

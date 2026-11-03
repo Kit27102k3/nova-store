@@ -52,6 +52,17 @@ const statusLabels: Record<AdminOrder["status"], string> = {
   completed: "Hoàn thành",
   cancelled: "Đã hủy",
 };
+const paymentMethodLabels: Record<AdminOrder["payment_method"], string> = {
+  cod: "Khi nhận hàng",
+  vnpay: "VNPay",
+};
+const paymentStatusLabels: Record<AdminOrder["payment_status"], string> = {
+  unpaid: "Chưa thanh toán",
+  pending: "Chờ thanh toán",
+  paid: "Đã thanh toán",
+  failed: "Thất bại",
+  cancelled: "Đã hủy",
+};
 const inputClass =
   "mt-2 h-11 w-full rounded-lg border border-line bg-white px-3 text-sm font-normal text-navy outline-none focus:border-cobalt";
 const textAreaClass =
@@ -669,12 +680,33 @@ function FragmentOrderRow({
           <span className="mt-1 block text-xs text-muted">{order.customer_email}</span>
         </td>
         <td className="px-4 py-4 text-sm text-muted">{formatDate(order.created_at)}</td>
-        <td className="px-4 py-4 text-sm font-bold text-navy">{formatPrice(order.total)}</td>
+        <td className="px-4 py-4 text-sm font-bold text-navy">
+          {formatPrice(order.total)}
+          <span className="mt-1 block text-[11px] font-semibold text-muted">
+            {paymentMethodLabels[order.payment_method]} ·{" "}
+            {paymentStatusLabels[order.payment_status]}
+          </span>
+        </td>
         <td className="px-4 py-4">
           <form onSubmit={(event) => onSubmit(event, updateAdminOrderStatus)} className="flex items-center gap-2">
             <input type="hidden" name="id" value={order.id} />
             <select name="status" defaultValue={order.status} disabled={pending || ["completed", "cancelled"].includes(order.status)} aria-label={`Trạng thái đơn ${order.order_number}`} className="h-9 rounded-lg border border-line bg-white px-2 text-xs font-semibold text-navy disabled:opacity-70">
-              {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <option
+                  key={value}
+                  value={value}
+                  disabled={
+                    order.payment_method === "vnpay" &&
+                    ((order.payment_status === "pending" &&
+                      value === "cancelled") ||
+                      (order.payment_status !== "paid" &&
+                      ["confirmed", "shipping", "completed"].includes(value)) ||
+                      (order.payment_status === "paid" && value === "cancelled"))
+                  }
+                >
+                  {label}
+                </option>
+              ))}
             </select>
             {!['completed', 'cancelled'].includes(order.status) && <button disabled={pending} className="text-xs font-bold text-cobalt disabled:opacity-50">Lưu</button>}
           </form>
@@ -687,7 +719,18 @@ function FragmentOrderRow({
         <tr>
           <td colSpan={5} className="bg-[#fbfbfd] px-6 py-5">
             <div className="grid gap-5 text-sm md:grid-cols-2">
-              <div><h3 className="font-bold text-navy">Địa chỉ nhận hàng</h3><p className="mt-2 leading-6 text-muted">{order.customer_phone}<br />{order.address}, {order.district}, {order.city}</p></div>
+              <div>
+                <h3 className="font-bold text-navy">Địa chỉ nhận hàng</h3>
+                <p className="mt-2 leading-6 text-muted">
+                  {order.customer_phone}
+                  <br />
+                  {order.address}, {order.district}, {order.city}
+                </p>
+                <p className="mt-3 text-xs font-semibold text-navy">
+                  Thanh toán: {paymentMethodLabels[order.payment_method]} ·{" "}
+                  {paymentStatusLabels[order.payment_status]}
+                </p>
+              </div>
               <div><h3 className="font-bold text-navy">Sản phẩm trong đơn</h3><ul className="mt-2 space-y-2">{order.items.map((item, index) => <li key={`${item.product_name}-${index}`} className="flex justify-between gap-3 text-muted"><span>{item.quantity}× {item.product_name}{item.variant ? ` · ${item.variant}` : ""}</span><span className="shrink-0">{formatPrice(item.unit_price * item.quantity)}</span></li>)}</ul><p className="mt-3 border-t border-line pt-3 text-right text-xs text-muted">Tạm tính {formatPrice(order.subtotal)} · Phí ship {formatPrice(order.shipping_fee)}</p></div>
             </div>
             <section className="mt-6 rounded-xl border border-line bg-white p-4">

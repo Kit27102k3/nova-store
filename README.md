@@ -49,7 +49,15 @@ Khách hàng có thể cập nhật hồ sơ, lưu nhiều địa chỉ riêng t
 
 Biểu mẫu địa chỉ và checkout hỗ trợ tra cứu địa chỉ, chọn/kéo ghim trên bản đồ OpenStreetMap và lấy vị trí hiện tại qua quyền định vị của trình duyệt. Tra cứu địa chỉ dùng Photon (dữ liệu OpenStreetMap), không cần API key; người dùng được thông báo truy vấn/tọa độ sẽ được gửi tới dịch vụ này. Định vị trên trình duyệt cần HTTPS (hoặc localhost).
 
-Checkout hiện tạo đơn COD (thanh toán khi nhận hàng). Tích hợp vận chuyển dùng mã vận đơn GHN: tạo vận đơn trong hệ thống GHN, nhập mã tại `/admin` → Đơn hàng → Chi tiết; ứng dụng dùng GHN API để cập nhật trạng thái và trang tra cứu cho khách. Ứng dụng không tự tạo vận đơn GHN.
+Checkout hỗ trợ COD (thanh toán khi nhận hàng) và VNPay. Với VNPay, đơn chỉ được xác nhận thanh toán sau khi callback có chữ ký hợp lệ; đơn thất bại hoặc quá hạn được hủy và hoàn tồn kho. Tích hợp vận chuyển dùng mã vận đơn GHN: tạo vận đơn trong hệ thống GHN, nhập mã tại `/admin` → Đơn hàng → Chi tiết; ứng dụng dùng GHN API để cập nhật trạng thái và trang tra cứu cho khách. Ứng dụng không tự tạo vận đơn GHN.
+
+### Thanh toán trực tuyến VNPay
+
+1. Chạy migration `supabase/migrations/20261103010000_vnpay_payments.sql` sau migration theo dõi GHN.
+2. Lấy `VNPAY_TMN_CODE` và `VNPAY_HASH_SECRET` từ VNPay; đặt trong môi trường server cùng `VNPAY_PAYMENT_URL` và `VNPAY_RETURN_URL`. Sandbox dùng `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html`; khi được VNPay cấp thông tin production, dùng URL production `https://pay.vnpay.vn/vpcpay.html`. Không đưa hash secret lên client hay Git.
+3. `VNPAY_RETURN_URL` phải cùng origin với `NEXT_PUBLIC_SITE_URL` và trỏ đến `/api/payments/vnpay/return`. Trong cấu hình website của VNPay, khai báo IPN URL `https://<domain-cua-ban>/api/payments/vnpay/ipn`. IPN phải truy cập được từ Internet; localhost không nhận được callback của VNPay.
+4. Cấu hình scheduler gọi `POST /api/cron/vnpay-expire` định kỳ (khuyến nghị mỗi 5 phút), dùng header `Authorization: Bearer <CRON_SECRET>`. Đơn chưa thanh toán quá 20 phút sẽ bị hủy và tồn kho được hoàn lại.
+5. Đơn hàng giới hạn 1 tỷ đồng theo hạn mức VNPay. Trang quản trị và lịch sử khách hàng hiển thị phương thức/trạng thái thanh toán. Thanh toán VNPay thật cần merchant credentials và domain HTTPS; chưa thể xác nhận giao dịch nếu chưa được cấp các thông tin này.
 
 ### Theo dõi GHN và email trạng thái đơn
 

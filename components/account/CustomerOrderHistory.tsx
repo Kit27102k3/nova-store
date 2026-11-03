@@ -22,6 +22,17 @@ const statusStyles: Record<CustomerOrder["status"], string> = {
   completed: "border border-emerald-200 bg-emerald-100 text-emerald-800",
   cancelled: "border border-rose-200 bg-rose-100 text-rose-800",
 };
+const paymentMethodLabels: Record<CustomerOrder["payment_method"], string> = {
+  cod: "Thanh toán khi nhận hàng",
+  vnpay: "VNPay",
+};
+const paymentStatusLabels: Record<CustomerOrder["payment_status"], string> = {
+  unpaid: "Chưa thanh toán",
+  pending: "Đang chờ thanh toán",
+  paid: "Đã thanh toán",
+  failed: "Thanh toán thất bại",
+  cancelled: "Đã hủy thanh toán",
+};
 const orderFilters = [
   { value: "all", label: "Tất cả" },
   { value: "pending", label: "Chờ xác nhận" },
@@ -236,7 +247,11 @@ export function CustomerOrderHistory({
                 >
                   {isExpanded ? "Ẩn chi tiết" : "Chi tiết đơn"}
                 </button>
-                {order.status === "pending" && (
+                {order.status === "pending" &&
+                  !(
+                    order.payment_method === "vnpay" &&
+                    order.payment_status === "pending"
+                  ) && (
                   <button
                     type="button"
                     disabled={pending}
@@ -261,6 +276,20 @@ export function CustomerOrderHistory({
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     Email: {order.customer_email}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-muted">
+                    Thanh toán: {paymentMethodLabels[order.payment_method]} ·{" "}
+                    <span
+                      className={
+                        order.payment_status === "paid"
+                          ? "font-bold text-emerald-700"
+                          : order.payment_status === "failed"
+                            ? "font-bold text-rose-700"
+                            : "font-semibold text-navy"
+                      }
+                    >
+                      {paymentStatusLabels[order.payment_status]}
+                    </span>
                   </p>
                 </div>
                 <div>

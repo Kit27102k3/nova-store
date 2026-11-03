@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { AddressMapLoader } from "@/components/address/AddressMapLoader";
 import type { MapPosition } from "@/components/address/AddressMap";
 import type { DeliveryAddressSuggestion } from "@/lib/geocoding/types";
@@ -92,14 +92,19 @@ export function AddressPicker({
     setError("");
   };
 
-  const search = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const search = () => {
     if (query.trim().length < 3) {
       setError("Nhập ít nhất 3 ký tự để tìm địa chỉ.");
       return;
     }
     const params = new URLSearchParams({ q: query.trim() });
     void lookup(`/api/geocode?${params.toString()}`, true);
+  };
+
+  const searchOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    search();
   };
 
   const useCurrentLocation = () => {
@@ -148,27 +153,30 @@ export function AddressPicker({
         </button>
       </div>
 
-      <form onSubmit={search} className="mt-4 flex gap-2">
+      <div role="search" className="mt-4 flex gap-2">
         <label className="sr-only" htmlFor="delivery-address-search">
           Tìm địa chỉ
         </label>
         <input
           id="delivery-address-search"
+          type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={searchOnEnter}
           maxLength={180}
           placeholder="Ví dụ: 12 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh"
           className="h-11 min-w-0 flex-1 rounded-xl border border-line px-4 text-sm outline-none focus:border-cobalt"
         />
         <button
-          type="submit"
+          type="button"
+          onClick={search}
           disabled={pending || query.trim().length < 3}
           className="inline-flex h-11 items-center gap-2 rounded-xl bg-navy px-4 text-sm font-bold text-white hover:bg-cobalt disabled:opacity-50"
         >
           <Icon name="search" className="size-4" />
           Tìm
         </button>
-      </form>
+      </div>
 
       {error && (
         <p role="alert" className="mt-3 text-sm text-coral">

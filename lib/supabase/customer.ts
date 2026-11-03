@@ -33,7 +33,7 @@ export type CustomerOrderItem = {
 
 export type CustomerOrderEvent = {
   id: number;
-  event_type: "order" | "status" | "tracking" | "shipping";
+  event_type: "order" | "status" | "tracking" | "shipping" | "payment";
   title: string;
   description: string;
   source: "system" | "admin" | "ghn";
@@ -50,6 +50,8 @@ export type CustomerOrder = {
   district: string;
   city: string;
   status: "pending" | "confirmed" | "shipping" | "completed" | "cancelled";
+  payment_method: "cod" | "vnpay";
+  payment_status: "unpaid" | "pending" | "paid" | "failed" | "cancelled";
   subtotal: number;
   shipping_fee: number;
   total: number;
@@ -78,6 +80,10 @@ export type CustomerAddressesResult =
 
 function isMissingOrderTrackingMigration(error: { code?: string }) {
   return ["42P01", "42703", "PGRST204", "PGRST205"].includes(error.code ?? "");
+}
+
+function appendNotice(current: string | undefined, message: string) {
+  return current ? `${current} ${message}` : message;
 }
 
 export async function getCustomerProfile(): Promise<
@@ -243,6 +249,8 @@ export async function getCustomerOrders(): Promise<
     subtotal: Number(row.subtotal),
     shipping_fee: Number(row.shipping_fee),
     total: Number(row.total),
+    payment_method: "cod",
+    payment_status: "unpaid",
     ghn_order_code: null,
     shipping_status: null,
     shipping_status_label: null,
@@ -280,6 +288,44 @@ export async function getCustomerOrders(): Promise<
         }));
     }
 
+    const { data: paymentRows, error: paymentError } = await supabase
+      .from("store_orders")
+      .select("id, payment_method, payment_status")
+      .in(
+        "id",
+        orders.map((order) => order.id),
+      );
+    if (paymentError) {
+      if (isMissingOrderTrackingMigration(paymentError)) {
+        console.warn(
+          "Thanh toán VNPay chưa được bật. Chạy migration 20261103010000_vnpay_payments.sql trong Supabase.",
+        );
+        notice = appendNotice(
+          notice,
+          "Thông tin thanh toán trực tuyến chưa sẵn sàng. Chạy migration 20261103010000_vnpay_payments.sql trong Supabase để bật tính năng này.",
+        );
+      } else {
+        console.error("Không thể tải trạng thái thanh toán đơn hàng.", paymentError);
+        notice = appendNotice(notice, "Trạng thái thanh toán tạm thời chưa tải được.");
+      }
+    } else {
+      for (const order of orders) {
+        const payment = paymentRows.find(
+          (row) => Number(row.id) === order.id,
+        );
+        if (!payment) continue;
+        order.payment_method =
+          payment.payment_method === "vnpay" ? "vnpay" : "cod";
+        if (
+          ["unpaid", "pending", "paid", "failed", "cancelled"].includes(
+            payment.payment_status,
+          )
+        ) {
+          order.payment_status = payment.payment_status;
+        }
+      }
+    }
+
     const { data: trackingRows, error: trackingError } = await supabase
       .from("store_orders")
       .select("id, ghn_order_code, shipping_status, shipping_status_label, shipping_tracking_url")
@@ -298,8 +344,10 @@ export async function getCustomerOrders(): Promise<
             trackingError,
           );
         }
-        notice =
-          "Lịch sử đơn hàng đã tải, nhưng theo dõi GHN chưa sẵn sàng. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase để bật tính năng này.";
+        notice = appendNotice(
+          notice,
+          "Lịch sử đơn hàng đã tải, nhưng theo dõi GHN chưa sẵn sàng. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase để bật tính năng này.",
+        );
     } else {
       for (const order of orders) {
         const tracking = trackingRows.find(
@@ -331,8 +379,10 @@ export async function getCustomerOrders(): Promise<
             eventsError,
           );
         }
-        notice =
-          "Lịch sử đơn hàng đã tải, nhưng lịch sử vận chuyển chưa sẵn sàng. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase để bật tính năng này.";
+        notice = appendNotice(
+          notice,
+          "Lịch sử đơn hàng đã tải, nhưng lịch sử vận chuyển chưa sẵn sàng. Chạy migration 20261103000000_order_tracking_notifications.sql trong Supabase để bật tính năng này.",
+        );
       } else {
         for (const order of orders) {
           order.events = (events ?? [])

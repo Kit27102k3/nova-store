@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { AddressPicker } from "@/components/address/AddressPicker";
 import { useStore } from "@/components/store-context";
-import { placeStoreOrder } from "@/app/actions/orders";
+import {
+  placeStoreOrder,
+  verifyVnpayReturnToken,
+} from "@/app/actions/orders";
 import { formatPrice } from "@/data/products";
 import type { DeliveryAddressSuggestion } from "@/lib/geocoding/types";
 
@@ -28,9 +32,19 @@ export function CheckoutView({
   customer: CheckoutCustomer | null;
 }) {
   const { cart, clearCart, products, settings } = useStore();
+  const searchParams = useSearchParams();
   const [complete, setComplete] = useState("");
+  const [completeMethod, setCompleteMethod] = useState<"cod" | "vnpay">("cod");
   const [errorMessage, setErrorMessage] = useState("");
+  const [paymentNotice, setPaymentNotice] = useState("");
   const [pending, startTransition] = useTransition();
+  const isVnpayReturn = searchParams.get("payment") === "return";
+  const returnToken = searchParams.get("token");
+  const visiblePaymentNotice =
+    paymentNotice ||
+    (isVnpayReturn && !returnToken
+      ? "Không xác minh được kết quả trả về từ VNPay."
+      : "");
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: customer?.address?.street ?? "",
     district: customer?.address?.district ?? "",
@@ -61,9 +75,40 @@ export function CheckoutView({
     });
   };
 
+  useEffect(() => {
+    if (!isVnpayReturn || !returnToken) return;
+    let active = true;
+    void verifyVnpayReturnToken(returnToken).then((result) => {
+      if (!active) return;
+      if (!result.valid) {
+        setPaymentNotice("Kết quả thanh toán không hợp lệ hoặc đã hết hạn.");
+        return;
+      }
+      if (result.status === "paid") {
+        clearCart();
+        setComplete(result.orderNumber);
+        setCompleteMethod("vnpay");
+        return;
+      }
+      setPaymentNotice(
+        `Thanh toán cho đơn ${result.orderNumber} chưa thành công. Giỏ hàng vẫn được giữ để bạn thử lại.`,
+      );
+    }).catch((error: unknown) => {
+      if (!active) return;
+      console.error("Không thể xác minh kết quả VNPay trả về.", error);
+      setPaymentNotice(
+        "Chưa thể xác minh kết quả thanh toán. Hãy xem lại trạng thái đơn hàng trước khi thử thanh toán lần nữa.",
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [clearCart, isVnpayReturn, returnToken]);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage("");
+    setPaymentNotice("");
     if (itemsNeedingVariant.length > 0) {
       setErrorMessage(
         "Vui lòng chọn đầy đủ tùy chọn cho sản phẩm trước khi đặt hàng.",
@@ -77,13 +122,27 @@ export function CheckoutView({
       variant: variant ?? null,
     }));
     startTransition(async () => {
-      const result = await placeStoreOrder(formData, orderItems);
+      let result: Awaited<ReturnType<typeof placeStoreOrder>>;
+      try {
+        result = await placeStoreOrder(formData, orderItems);
+      } catch (error) {
+        console.error("Không thể gửi yêu cầu đặt hàng.", error);
+        setErrorMessage(
+          "Không nhận được xác nhận từ máy chủ. Hãy kiểm tra lịch sử đơn hàng trước khi thử lại.",
+        );
+        return;
+      }
       if (!result.success) {
         setErrorMessage(result.message);
         return;
       }
+      if (result.paymentUrl) {
+        window.location.assign(result.paymentUrl);
+        return;
+      }
       clearCart();
       setComplete(result.orderNumber);
+      setCompleteMethod(result.paymentMethod);
     });
   };
 
@@ -99,9 +158,12 @@ export function CheckoutView({
             Đơn hàng đã được ghi nhận
           </h1>
           <p className="mt-4 text-sm leading-7 text-muted">
-            Mã đơn hàng của bạn là{" "}
+            {completeMethod === "vnpay"
+              ? "Thanh toán VNPay đã được xác nhận. Mã đơn hàng của bạn là "
+              : "Mã đơn hàng của bạn là "}
             <strong className="text-navy">{complete}</strong>. Chúng tôi sẽ liên
-            hệ để xác nhận đơn hàng và thanh toán khi nhận hàng.
+            hệ để xác nhận đơn hàng
+            {completeMethod === "cod" && " và thanh toán khi nhận hàng"}.
           </p>
           <Link
             href="/products"
@@ -144,6 +206,14 @@ export function CheckoutView({
       <h1 className="mt-8 font-display text-4xl text-navy sm:text-5xl">
         Thanh toán
       </h1>
+      {visiblePaymentNotice && (
+        <p
+          role="status"
+          className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-navy"
+        >
+          {visiblePaymentNotice}
+        </p>
+      )}
       <form
         onSubmit={submit}
         className="mt-10 grid gap-10 lg:grid-cols-[1fr_390px]"
@@ -288,6 +358,46 @@ export function CheckoutView({
               <dd className="text-lg">{formatPrice(subtotal + shipping)}</dd>
             </div>
           </dl>
+          <fieldset className="mt-6 border-t border-line pt-5">
+            <legend className="font-semibold text-navy">
+              Phương thức thanh toán
+            </legend>
+            <div className="mt-3 grid gap-3">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-white p-3 text-sm">
+                <input
+                  type="radio"
+                  name="payment_method"
+                  value="cod"
+                  defaultChecked
+                  className="mt-1 accent-navy"
+                />
+                <span>
+                  <span className="block font-bold text-navy">
+                    Thanh toán khi nhận hàng
+                  </span>
+                  <span className="mt-1 block text-xs text-muted">
+                    Trả tiền trực tiếp cho đơn vị giao hàng.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-white p-3 text-sm">
+                <input
+                  type="radio"
+                  name="payment_method"
+                  value="vnpay"
+                  className="mt-1 accent-navy"
+                />
+                <span>
+                  <span className="block font-bold text-navy">
+                    Thanh toán trực tuyến VNPay
+                  </span>
+                  <span className="mt-1 block text-xs text-muted">
+                    Chuyển đến VNPay để thanh toán an toàn.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
           {(errorMessage || itemsNeedingVariant.length > 0) && (
             <p
               role="alert"
@@ -320,10 +430,10 @@ export function CheckoutView({
             disabled={pending || itemsNeedingVariant.length > 0}
             className="mt-6 h-12 w-full rounded-full bg-navy text-sm font-bold text-white hover:bg-cobalt disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? "Đang ghi nhận..." : "Đặt hàng"}
+            {pending ? "Đang xử lý..." : "Đặt hàng"}
           </button>
           <p className="mt-4 text-center text-xs leading-5 text-muted">
-            Thanh toán khi nhận hàng. Giá và tồn kho được xác minh khi đặt hàng.
+            Giá và tồn kho được xác minh phía máy chủ khi đặt hàng.
           </p>
         </aside>
       </form>
