@@ -17,12 +17,15 @@ import { getSupabaseConfig } from "@/lib/supabase/config";
 const CART_KEY = "nova-store-cart";
 const FAVORITES_KEY = "nova-store-favorites";
 type Toast = { id: number; message: string };
+type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "error";
 type StoreContextValue = {
   cart: CartItem[];
   favorites: number[];
   toast: Toast | null;
   products: Product[];
   settings: StoreSettings;
+  favoritesReady: boolean;
+  authStatus: AuthStatus;
   addToCart: (productId: number, quantity?: number, variant?: string) => void;
   updateQuantity: (productId: number, quantity: number, variant?: string) => void;
   removeFromCart: (productId: number, variant?: string) => void;
@@ -64,6 +67,14 @@ function writeStorage(key: string, value: unknown) {
   }
 }
 
+function removeStorage(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error(`Không thể xóa dữ liệu ${key} khỏi trình duyệt.`, error);
+  }
+}
+
 export function StoreProvider({
   children,
   products,
@@ -79,6 +90,9 @@ export function StoreProvider({
   const [ready, setReady] = useState(false);
   const [wishlistSyncComplete, setWishlistSyncComplete] = useState(false);
   const [remoteWishlistEnabled, setRemoteWishlistEnabled] = useState(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(() =>
+    getSupabaseConfig() ? "loading" : "unauthenticated",
+  );
   const favoritesRef = useRef(favorites);
   const wishlistRequestRef = useRef(false);
 
@@ -94,7 +108,9 @@ export function StoreProvider({
       console.error("Giỏ hàng trong trình duyệt không hợp lệ.");
     }
 
-    const storedFavorites = readStorage(FAVORITES_KEY);
+    const storedFavorites = getSupabaseConfig()
+      ? null
+      : readStorage(FAVORITES_KEY);
     const hydratedFavorites = Array.isArray(storedFavorites)
       ? [...new Set(storedFavorites)].filter(
           (id): id is number =>
@@ -112,19 +128,43 @@ export function StoreProvider({
       setFavorites(hydratedFavorites);
       setReady(true);
     });
+    if (getSupabaseConfig()) removeStorage(FAVORITES_KEY);
   }, [products]);
 
   useEffect(() => {
     favoritesRef.current = favorites;
   }, [favorites]);
 
-  const syncWishlist = useCallback(async () => {
+  const refreshAuthStatus = useCallback(async () => {
     if (!getSupabaseConfig()) {
+      setAuthStatus("unauthenticated");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Tải trạng thái tài khoản thất bại (${response.status}).`);
+      }
+      const result: { user: unknown | null } = await response.json();
+      setAuthStatus(result.user ? "authenticated" : "unauthenticated");
+    } catch (error) {
+      console.error("Không thể xác minh tài khoản trước khi mua hàng.", error);
+      setAuthStatus("error");
+    }
+  }, []);
+
+  const syncWishlist = useCallback(async () => {
+    if (!ready) return;
+    if (!getSupabaseConfig()) {
+      setAuthStatus("unauthenticated");
       setWishlistSyncComplete(true);
       return;
     }
     if (wishlistRequestRef.current) return;
     wishlistRequestRef.current = true;
+    setAuthStatus("loading");
+    setWishlistSyncComplete(false);
     try {
       const response = await fetch("/api/account/wishlist", {
         cache: "no-store",
@@ -135,28 +175,30 @@ export function StoreProvider({
       const result: { authenticated: boolean; productIds: number[] } =
         await response.json();
       if (!result.authenticated) {
+        setAuthStatus("unauthenticated");
+        favoritesRef.current = [];
+        setFavorites([]);
         setRemoteWishlistEnabled(false);
         setWishlistSyncComplete(true);
         return;
       }
       const availableIds = new Set(products.map((product) => product.id));
-      const merged = [
-        ...new Set([
-          ...favoritesRef.current,
-          ...result.productIds.filter((id) => availableIds.has(id)),
-        ]),
+      const productIds = [
+        ...new Set(result.productIds.filter((id) => availableIds.has(id))),
       ];
-      favoritesRef.current = merged;
-      setFavorites(merged);
+      setAuthStatus("authenticated");
+      favoritesRef.current = productIds;
+      setFavorites(productIds);
       setRemoteWishlistEnabled(true);
       setWishlistSyncComplete(true);
     } catch (error) {
       console.error("Không thể đồng bộ danh sách yêu thích.", error);
       setWishlistSyncComplete(true);
+      await refreshAuthStatus();
     } finally {
       wishlistRequestRef.current = false;
     }
-  }, [products]);
+  }, [products, ready, refreshAuthStatus]);
 
   useEffect(() => {
     if (ready) startTransition(() => void syncWishlist());
@@ -165,7 +207,11 @@ export function StoreProvider({
   useEffect(() => {
     if (!ready) return;
     writeStorage(CART_KEY, cart);
-    writeStorage(FAVORITES_KEY, favorites);
+    if (getSupabaseConfig()) {
+      removeStorage(FAVORITES_KEY);
+    } else {
+      writeStorage(FAVORITES_KEY, favorites);
+    }
     if (!wishlistSyncComplete || !remoteWishlistEnabled) return;
 
     const controller = new AbortController();
@@ -207,6 +253,16 @@ export function StoreProvider({
 
   const addToCart = useCallback(
     (productId: number, quantity = 1, variant?: string) => {
+      if (authStatus !== "authenticated") {
+        notify(
+          authStatus === "loading"
+            ? "Đang kiểm tra đăng nhập. Vui lòng thử lại sau giây lát."
+            : authStatus === "error"
+              ? "Không thể xác minh đăng nhập. Vui lòng tải lại trang."
+              : "Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.",
+        );
+        return;
+      }
       const product = products.find((entry) => entry.id === productId);
       if (!product || !Number.isSafeInteger(quantity) || quantity < 1) {
         notify("Sản phẩm hoặc số lượng không hợp lệ.");
@@ -239,7 +295,7 @@ export function StoreProvider({
       });
       notify("Đã thêm vào giỏ hàng");
     },
-    [notify, products],
+    [authStatus, notify, products],
   );
 
   const updateQuantity = useCallback(
@@ -280,11 +336,11 @@ export function StoreProvider({
         return;
       }
       const exists = favoritesRef.current.includes(productId);
-      setFavorites((current) =>
-        exists
-          ? current.filter((id) => id !== productId)
-          : [...current, productId],
-      );
+      const next = exists
+        ? favoritesRef.current.filter((id) => id !== productId)
+        : [...favoritesRef.current, productId];
+      favoritesRef.current = next;
+      setFavorites(next);
       notify(exists ? "Đã xóa khỏi yêu thích" : "Đã lưu yêu thích");
     },
     [notify, products],
@@ -300,6 +356,8 @@ export function StoreProvider({
         toast,
         products,
         settings,
+        favoritesReady: ready && (!getSupabaseConfig() || wishlistSyncComplete),
+        authStatus,
         addToCart,
         updateQuantity,
         removeFromCart,

@@ -59,7 +59,7 @@ export function AccountAuth({
   );
 
   useEffect(() => {
-    if (email) void syncWishlist();
+    void syncWishlist();
   }, [email, syncWishlist]);
 
   if (email) {

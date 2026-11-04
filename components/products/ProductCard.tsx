@@ -8,7 +8,7 @@ import { formatPrice } from "@/data/products";
 import type { Product } from "@/types/product";
 
 export function ProductCard({ product }: { product: Product }) {
-  const { addToCart, favorites, toggleFavorite } = useStore();
+  const { addToCart, authStatus, favorites, toggleFavorite } = useStore();
   const saved = favorites.includes(product.id);
   const variantLabel = product.variants
     ? `Chọn ${product.variants.label.toLocaleLowerCase("vi-VN")}`
@@ -61,13 +61,22 @@ export function ProductCard({ product }: { product: Product }) {
             {variantLabel} <Icon name="arrow" className="size-4" />
           </Link>
         ) : (
-          <button
-            type="button"
-            onClick={() => addToCart(product.id)}
-            className="absolute inset-x-3 bottom-3 hidden h-11 translate-y-2 items-center justify-center gap-2 rounded-full bg-navy text-sm font-semibold text-white opacity-0 transition hover:bg-cobalt group-hover:translate-y-0 group-hover:opacity-100 sm:flex"
-          >
-            Thêm vào giỏ <Icon name="plus" className="size-4" />
-          </button>
+          authStatus === "authenticated" ? (
+            <button
+              type="button"
+              onClick={() => addToCart(product.id)}
+              className="absolute inset-x-3 bottom-3 hidden h-11 translate-y-2 items-center justify-center gap-2 rounded-full bg-navy text-sm font-semibold text-white opacity-0 transition hover:bg-cobalt group-hover:translate-y-0 group-hover:opacity-100 sm:flex"
+            >
+              Thêm vào giỏ <Icon name="plus" className="size-4" />
+            </button>
+          ) : (
+            <Link
+              href="/account"
+              className="absolute inset-x-3 bottom-3 hidden h-11 translate-y-2 items-center justify-center gap-2 rounded-full bg-navy text-sm font-semibold text-white opacity-0 transition hover:bg-cobalt group-hover:translate-y-0 group-hover:opacity-100 sm:flex"
+            >
+              Đăng nhập để mua <Icon name="arrow" className="size-4" />
+            </Link>
+          )
         )}
       </div>
       <div className="pt-4">
@@ -106,13 +115,22 @@ export function ProductCard({ product }: { product: Product }) {
             <Icon name="bag" className="size-4" /> {variantLabel}
           </Link>
         ) : (
-          <button
-            type="button"
-            onClick={() => addToCart(product.id)}
-            className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-line text-sm font-semibold text-navy sm:hidden"
-          >
-            <Icon name="bag" className="size-4" /> Thêm vào giỏ
-          </button>
+          authStatus === "authenticated" ? (
+            <button
+              type="button"
+              onClick={() => addToCart(product.id)}
+              className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-line text-sm font-semibold text-navy sm:hidden"
+            >
+              <Icon name="bag" className="size-4" /> Thêm vào giỏ
+            </button>
+          ) : (
+            <Link
+              href="/account"
+              className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-line text-sm font-semibold text-navy sm:hidden"
+            >
+              Đăng nhập để mua
+            </Link>
+          )
         )}
       </div>
     </article>

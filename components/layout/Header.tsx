@@ -21,13 +21,16 @@ type AccountUser = {
 
 export function Header() {
   const [open, setOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [accountUser, setAccountUser] = useState<AccountUser | null>(null);
   const [authChecked, setAuthChecked] = useState(
     () => !getSupabaseConfig(),
   );
   const router = useRouter();
-  const { cart, favorites, settings } = useStore();
+  const { authStatus, cart, favorites, settings } = useStore();
+  const favoriteCount =
+    getSupabaseConfig() && authStatus !== "authenticated" ? 0 : favorites.length;
   const quantity = cart.reduce((sum, item) => sum + item.quantity, 0);
   const shippingThreshold = new Intl.NumberFormat("vi-VN").format(
     settings.shippingThreshold,
@@ -60,6 +63,7 @@ export function Header() {
     const query = search.trim();
     router.push(query ? `/products?q=${encodeURIComponent(query)}` : "/products");
     setOpen(false);
+    setAccountMenuOpen(false);
   };
 
   return (
@@ -69,7 +73,18 @@ export function Header() {
           ? "MIỄN PHÍ VẬN CHUYỂN CHO MỌI ĐƠN HÀNG"
           : `MIỄN PHÍ VẬN CHUYỂN CHO ĐƠN HÀNG TỪ ${shippingThreshold}đ`}
       </div>
-      <header className="sticky top-0 z-50 border-b border-line/70 bg-white/95 backdrop-blur">
+      <header
+        onClick={(event) => {
+          if (
+            event.target instanceof Element &&
+            event.target.closest("a[href]")
+          ) {
+            setOpen(false);
+            setAccountMenuOpen(false);
+          }
+        }}
+        className="sticky top-0 z-50 border-b border-line/70 bg-white/95 backdrop-blur"
+      >
         <div className="container-shell flex h-16 items-center gap-2 sm:h-[74px] sm:gap-5">
           <button
             type="button"
@@ -121,9 +136,24 @@ export function Header() {
           </form>
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:ml-0 sm:gap-1">
             <div
-              className="group relative hidden sm:block"
-              onMouseEnter={() => void refreshAccountUser()}
-              onFocus={() => void refreshAccountUser()}
+              className="relative hidden sm:block"
+              onMouseEnter={() => {
+                setAccountMenuOpen(true);
+                void refreshAccountUser();
+              }}
+              onFocus={() => {
+                setAccountMenuOpen(true);
+                void refreshAccountUser();
+              }}
+              onMouseLeave={() => setAccountMenuOpen(false)}
+              onBlur={(event) => {
+                if (
+                  !(event.relatedTarget instanceof Node) ||
+                  !event.currentTarget.contains(event.relatedTarget)
+                ) {
+                  setAccountMenuOpen(false);
+                }
+              }}
             >
               <Link
                 href="/account"
@@ -134,7 +164,12 @@ export function Header() {
               </Link>
               <nav
                 aria-label="Menu tài khoản"
-                className="invisible absolute right-0 top-full z-50 w-64 translate-y-2 rounded-2xl border border-line bg-white p-2 opacity-0 shadow-soft transition duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100"
+                onClick={() => setAccountMenuOpen(false)}
+                className={`absolute right-0 top-full z-50 w-64 rounded-2xl border border-line bg-white p-2 shadow-soft transition duration-200 ${
+                  accountMenuOpen
+                    ? "visible translate-y-0 opacity-100"
+                    : "invisible translate-y-2 opacity-0"
+                }`}
               >
                 {!authChecked ? (
                   <span className="block rounded-xl px-4 py-3 text-sm text-muted">
@@ -207,11 +242,11 @@ export function Header() {
             <Link
               href="/products?favorites=1"
               className="icon-button relative size-10 sm:size-11"
-              aria-label={`Yêu thích, ${favorites.length} sản phẩm`}
+              aria-label={`Yêu thích, ${favoriteCount} sản phẩm`}
             >
               <Icon name="heart" className="size-5" />
-              {favorites.length > 0 && (
-                <span className="count-badge">{favorites.length}</span>
+              {favoriteCount > 0 && (
+                <span className="count-badge">{favoriteCount}</span>
               )}
             </Link>
             <Link

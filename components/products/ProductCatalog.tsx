@@ -18,7 +18,7 @@ export function ProductCatalog({
 }) {
   const params = useSearchParams();
   const router = useRouter();
-  const { favorites } = useStore();
+  const { favorites, favoritesReady } = useStore();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [category, setCategory] = useState(params.get("category") ?? "Tất cả");
   const [price, setPrice] = useState(params.get("price") ?? "all");
@@ -43,6 +43,18 @@ export function ProductCatalog({
     url.set("sort", next);
     router.replace(`/products?${url.toString()}`, { scroll: false });
   };
+
+  if (isFavoritesPage && !favoritesReady) {
+    return (
+      <p
+        role="status"
+        className="mt-8 rounded-2xl border border-line bg-white p-6 text-sm text-muted"
+      >
+        Đang tải danh sách yêu thích...
+      </p>
+    );
+  }
+
   return <>
     <header className={`relative mt-6 overflow-hidden rounded-[32px] px-7 py-9 sm:px-12 sm:py-12 ${isFavoritesPage ? "bg-gradient-to-br from-[#fff0ec] via-[#fff8f1] to-[#f0efff]" : "bg-gradient-to-br from-[#eef0ff] via-[#f5f4ff] to-[#effaf5]"}`}>
       <div className="pointer-events-none absolute -right-10 -top-20 size-64 rounded-full border-[34px] border-white/50" />

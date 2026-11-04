@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useStore } from "@/components/store-context";
 import { Icon } from "@/components/ui/Icon";
 import type { Product } from "@/types/product";
@@ -8,7 +9,7 @@ import type { Product } from "@/types/product";
 export function ProductDetailActions({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
   const [variant, setVariant] = useState(product.variants?.options[0]);
-  const { addToCart, favorites, toggleFavorite } = useStore();
+  const { addToCart, authStatus, favorites, toggleFavorite } = useStore();
   const saved = favorites.includes(product.id);
 
   return (
@@ -73,14 +74,23 @@ export function ProductDetailActions({ product }: { product: Product }) {
       </div>
 
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)_44px] gap-2">
-        <button
-          type="button"
-          onClick={() => addToCart(product.id, quantity, variant)}
-          className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(100deg,#111827,#315cff)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_-12px_rgba(49,92,255,0.8)] transition hover:brightness-110"
-        >
-          <Icon name="bag" className="size-4" />
-          Thêm vào giỏ hàng
-        </button>
+        {authStatus === "authenticated" ? (
+          <button
+            type="button"
+            onClick={() => addToCart(product.id, quantity, variant)}
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(100deg,#111827,#315cff)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_-12px_rgba(49,92,255,0.8)] transition hover:brightness-110"
+          >
+            <Icon name="bag" className="size-4" />
+            Thêm vào giỏ hàng
+          </button>
+        ) : (
+          <Link
+            href="/account"
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(100deg,#111827,#315cff)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_-12px_rgba(49,92,255,0.8)] transition hover:brightness-110"
+          >
+            Đăng nhập để mua hàng
+          </Link>
+        )}
         <button
           type="button"
           onClick={() => toggleFavorite(product.id)}
