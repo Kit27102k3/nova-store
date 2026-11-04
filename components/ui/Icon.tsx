@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-export type IconName = "search" | "user" | "heart" | "bag" | "menu" | "close" | "arrow" | "truck" | "shield" | "return" | "support" | "minus" | "plus" | "trash" | "check" | "star" | "mapPin";
+export type IconName = "search" | "user" | "heart" | "bag" | "menu" | "close" | "arrow" | "truck" | "shield" | "return" | "support" | "minus" | "plus" | "trash" | "check" | "star" | "mapPin" | "ticket";
 
 const paths: Record<IconName, React.ReactNode> = {
   search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
@@ -16,6 +16,7 @@ const paths: Record<IconName, React.ReactNode> = {
   minus: <path d="M5 12h14"/>, plus: <path d="M12 5v14M5 12h14"/>, trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/></>,
   check: <path d="m5 12 4 4L19 6"/>, star: <path d="m12 2.5 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3.1-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9L12 2.5Z"/>,
   mapPin: <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
+  ticket: <><path d="M3 8a2 2 0 0 0 0 4v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 1 0-4V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2Z"/><path d="M13 5v2m0 4v2m0 4v2"/></>,
 };
 
 export function Icon({ name, className = "", ...props }: SVGProps<SVGSVGElement> & { name: IconName }) {

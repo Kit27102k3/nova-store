@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Category, Product } from "@/types/product";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
+import type { AdminVoucher } from "@/lib/vouchers";
 
 export type AdminCategory = {
   id: number;
@@ -41,6 +42,8 @@ export type AdminOrder = {
   payment_status: "unpaid" | "pending" | "paid" | "failed" | "cancelled";
   subtotal: number;
   shipping_fee: number;
+  voucher_code: string | null;
+  discount_amount: number;
   total: number;
   created_at: string;
   ghn_order_code: string | null;
@@ -71,6 +74,9 @@ export type AdminDashboardData = {
   products: AdminProduct[];
   orders: AdminOrder[];
   customers: AdminCustomer[];
+  customerLoadError: string | null;
+  vouchers: AdminVoucher[];
+  voucherLoadError: string | null;
   settings: StoreSettings;
 };
 
@@ -120,7 +126,7 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
     };
   }
 
-  const [categoryResult, productResult, orderResult, settingsResult] =
+  const [categoryResult, productResult, orderResult, settingsResult, voucherResult] =
     await Promise.all([
       supabase.from("store_categories").select("*").order("name"),
       supabase
@@ -133,6 +139,10 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
         .order("created_at", { ascending: false })
         .limit(1000),
       supabase.from("store_settings").select("*").eq("id", "store").single(),
+      supabase
+        .from("store_vouchers")
+        .select("*")
+        .order("created_at", { ascending: false }),
     ]);
 
   const queryError =
@@ -147,6 +157,12 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
       error:
         "Không thể tải dữ liệu quản trị. Hãy kiểm tra và chạy migration Supabase mới nhất.",
     };
+  }
+  const voucherLoadError = voucherResult.error
+    ? "Không thể tải voucher. Hãy chạy migration voucher mới nhất trong Supabase."
+    : null;
+  if (voucherResult.error) {
+    console.warn("Không thể tải danh sách voucher quản trị.", voucherResult.error);
   }
 
   const categories: AdminCategory[] = (categoryResult.data ?? []).map((row) => ({
@@ -193,6 +209,8 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
     payment_status: row.payment_status ?? "unpaid",
     subtotal: Number(row.subtotal),
     shipping_fee: Number(row.shipping_fee),
+    voucher_code: row.voucher_code ?? null,
+    discount_amount: Number(row.discount_amount ?? 0),
     total: Number(row.total),
     created_at: row.created_at,
     ghn_order_code: row.ghn_order_code ?? null,
@@ -200,6 +218,20 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
     shipping_status_label: row.shipping_status_label ?? null,
     shipping_tracking_url: row.shipping_tracking_url ?? null,
     items: [],
+  }));
+
+  const vouchers: AdminVoucher[] = (voucherResult.data ?? []).map((row) => ({
+    id: row.id,
+    code: row.code,
+    discount_type: row.discount_type,
+    discount_value: Number(row.discount_value),
+    min_subtotal: Number(row.min_subtotal),
+    max_discount: row.max_discount === null ? null : Number(row.max_discount),
+    starts_at: row.starts_at,
+    expires_at: row.expires_at,
+    usage_limit: row.usage_limit === null ? null : Number(row.usage_limit),
+    used_count: Number(row.used_count),
+    is_active: row.is_active,
   }));
 
   if (orders.length) {
@@ -221,6 +253,7 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
           quantity: Number(item.quantity),
         }));
     }
+
   }
 
   const customersByEmail = new Map<string, AdminCustomer>();
@@ -243,35 +276,48 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
     }
   }
 
-  let page = 1;
-  while (true) {
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page,
-      perPage: 100,
-    });
-    if (error) {
-      console.error("Không thể tải danh sách khách hàng Supabase Auth.", error);
-      return { data: null, error: "Không thể tải danh sách khách hàng." };
-    }
-    for (const user of data.users) {
-      if (!user.email) continue;
-      const email = user.email.toLowerCase();
-      const totals = orderTotals.get(email) ?? { orders: 0, spent: 0 };
-      customersByEmail.set(email, {
-        id: user.id,
-        name:
-          (typeof user.user_metadata.full_name === "string" &&
-            user.user_metadata.full_name) ||
-          customersByEmail.get(email)?.name ||
-          "Khách hàng",
-        email,
-        orders: totals.orders,
-        spent: totals.spent,
-        createdAt: user.created_at,
+  let customerLoadError: string | null = null;
+  const authCustomers: AdminCustomer[] = [];
+  try {
+    let page = 1;
+    while (true) {
+      const { data, error } = await supabase.auth.admin.listUsers({
+        page,
+        perPage: 100,
       });
+      if (error) {
+        console.warn("Không thể tải danh sách khách hàng Supabase Auth.", error);
+        customerLoadError =
+          "Supabase Auth chưa trả được danh sách tài khoản. Đang hiển thị khách hàng có đơn hàng; hãy kiểm tra mục Authentication → Users trong Supabase.";
+        break;
+      }
+      for (const user of data.users) {
+        if (!user.email) continue;
+        const email = user.email.toLowerCase();
+        const totals = orderTotals.get(email) ?? { orders: 0, spent: 0 };
+        authCustomers.push({
+          id: user.id,
+          name:
+            (typeof user.user_metadata.full_name === "string" &&
+              user.user_metadata.full_name) ||
+            customersByEmail.get(email)?.name ||
+            "Khách hàng",
+          email,
+          orders: totals.orders,
+          spent: totals.spent,
+          createdAt: user.created_at,
+        });
+      }
+      if (data.users.length < 100) break;
+      page += 1;
     }
-    if (data.users.length < 100) break;
-    page += 1;
+  } catch (error) {
+    console.warn("Không thể tải danh sách khách hàng Supabase Auth.", error);
+    customerLoadError =
+      "Supabase Auth chưa trả được danh sách tài khoản. Đang hiển thị khách hàng có đơn hàng; hãy kiểm tra mục Authentication → Users trong Supabase.";
+  }
+  for (const customer of authCustomers) {
+    customersByEmail.set(customer.email, customer);
   }
 
   return {
@@ -282,6 +328,9 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
       customers: [...customersByEmail.values()].sort((a, b) =>
         b.createdAt.localeCompare(a.createdAt),
       ),
+      customerLoadError,
+      vouchers,
+      voucherLoadError,
       settings: {
         store_name: settingsResult.data.store_name,
         support_email: settingsResult.data.support_email,

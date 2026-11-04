@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { AddressPicker } from "@/components/address/AddressPicker";
 import { useStore } from "@/components/store-context";
@@ -10,8 +18,11 @@ import {
   placeStoreOrder,
   verifyVnpayReturnToken,
 } from "@/app/actions/orders";
+import { quoteStoreVoucher } from "@/app/actions/vouchers";
+import { VoucherPicker } from "@/components/cart/VoucherPicker";
 import { formatPrice } from "@/data/products";
 import type { DeliveryAddressSuggestion } from "@/lib/geocoding/types";
+import type { VoucherQuote } from "@/lib/vouchers";
 
 type CheckoutCustomer = {
   email: string;
@@ -33,11 +44,28 @@ export function CheckoutView({
 }) {
   const { cart, clearCart, products, settings } = useStore();
   const searchParams = useSearchParams();
+  const requestedVoucher = searchParams.get("voucher")?.trim().toUpperCase() ?? "";
   const [complete, setComplete] = useState("");
   const [completeMethod, setCompleteMethod] = useState<"cod" | "vnpay">("cod");
   const [errorMessage, setErrorMessage] = useState("");
   const [paymentNotice, setPaymentNotice] = useState("");
   const [pending, startTransition] = useTransition();
+  const [voucherCode, setVoucherCode] = useState(requestedVoucher);
+  const [voucherState, setVoucherState] = useState<{
+    cartKey: string;
+    quote: VoucherQuote;
+  } | null>(null);
+  const [voucherError, setVoucherError] = useState("");
+  const [voucherDismissed, setVoucherDismissed] = useState(false);
+  const [voucherRequest, setVoucherRequest] = useState<{
+    id: number;
+    cartKey: string;
+  } | null>(null);
+  const cartKey = JSON.stringify(cart);
+  const voucherRequestId = useRef(0);
+  const checkingVoucher = voucherRequest?.cartKey === cartKey;
+  const verifiedVoucher =
+    voucherState?.cartKey === cartKey ? voucherState.quote : null;
   const isVnpayReturn = searchParams.get("payment") === "return";
   const returnToken = searchParams.get("token");
   const visiblePaymentNotice =
@@ -50,10 +78,14 @@ export function CheckoutView({
     district: customer?.address?.district ?? "",
     city: customer?.address?.city ?? "",
   });
-  const items = cart.flatMap((item) => {
-    const product = products.find((entry) => entry.id === item.productId);
-    return product ? [{ ...item, product }] : [];
-  });
+  const items = useMemo(
+    () =>
+      cart.flatMap((item) => {
+        const product = products.find((entry) => entry.id === item.productId);
+        return product ? [{ ...item, product }] : [];
+      }),
+    [cart, products],
+  );
   const itemsNeedingVariant = items.filter(
     ({ product, variant }) =>
       product.variants && !product.variants.options.includes(variant ?? ""),
@@ -64,8 +96,72 @@ export function CheckoutView({
   );
   const shipping =
     subtotal >= settings.shippingThreshold ? 0 : settings.shippingFee;
+  const carriedSubtotal = Number(searchParams.get("voucherSubtotal"));
+  const carriedDiscount = Number(searchParams.get("voucherDiscount"));
+  const carriedVoucher =
+    requestedVoucher &&
+    carriedSubtotal === subtotal &&
+    Number.isSafeInteger(carriedDiscount) &&
+    carriedDiscount > 0 &&
+    carriedDiscount <= subtotal &&
+    !voucherDismissed &&
+    !voucherError
+      ? {
+          code: requestedVoucher,
+          discount: carriedDiscount,
+          subtotal: carriedSubtotal,
+        }
+      : null;
+  const voucher = verifiedVoucher ?? carriedVoucher;
+  const discount = voucher?.discount ?? 0;
   const field =
     "mt-2 h-12 w-full rounded-xl border border-line bg-white px-4 outline-none focus:border-cobalt";
+
+  useEffect(() => {
+    voucherRequestId.current += 1;
+  }, [cartKey]);
+
+  const applyVoucher = useCallback(async (code = voucherCode) => {
+    const normalizedCode = code.trim().toUpperCase();
+    if (!normalizedCode) {
+      setVoucherError("Vui lòng nhập hoặc chọn mã voucher.");
+      return false;
+    }
+    const requestCartKey = cartKey;
+    const requestId = ++voucherRequestId.current;
+    const orderItems = items.map(({ product, quantity, variant }) => ({
+      product_id: product.id,
+      quantity,
+      variant: variant ?? null,
+    }));
+    setVoucherRequest({ id: requestId, cartKey: requestCartKey });
+    setVoucherError("");
+    try {
+      const result = await quoteStoreVoucher(normalizedCode, orderItems);
+      if (voucherRequestId.current !== requestId) return false;
+      if (!result.success) {
+        setVoucherState(null);
+        setVoucherError(result.message);
+        return false;
+      }
+      if (result.quote.subtotal !== subtotal) {
+        setVoucherState(null);
+        setVoucherError(
+          "Giá sản phẩm vừa thay đổi. Tải lại trang để kiểm tra voucher mới nhất.",
+        );
+        return false;
+      }
+      setVoucherCode(result.quote.code);
+      setVoucherState({ cartKey: requestCartKey, quote: result.quote });
+      return true;
+    } catch (error) {
+      console.error("Không thể kiểm tra voucher.", error);
+      setVoucherError("Không thể kiểm tra voucher. Vui lòng thử lại.");
+      return false;
+    } finally {
+      if (voucherRequestId.current === requestId) setVoucherRequest(null);
+    }
+  }, [cartKey, items, subtotal, voucherCode]);
 
   const chooseDeliveryAddress = (address: DeliveryAddressSuggestion) => {
     setDeliveryAddress({
@@ -116,6 +212,7 @@ export function CheckoutView({
       return;
     }
     const formData = new FormData(event.currentTarget);
+    formData.set("voucher_code", voucher?.code ?? "");
     const orderItems = items.map(({ product, quantity, variant }) => ({
       product_id: product.id,
       quantity,
@@ -348,14 +445,95 @@ export function CheckoutView({
               </div>
             ))}
           </div>
+          <div className="mt-6 border-t border-line pt-5">
+            <label
+              htmlFor="voucher-code"
+              className="flex items-center gap-2 text-sm font-semibold text-navy"
+            >
+              <span aria-hidden="true">◇</span>
+              Mã giảm giá
+            </label>
+            <div className="mt-3 flex gap-2">
+              <input
+                id="voucher-code"
+                value={voucherCode}
+                maxLength={40}
+                disabled={pending || checkingVoucher || Boolean(voucher)}
+                onChange={(event) => {
+                  setVoucherCode(event.target.value.toUpperCase());
+                  setVoucherError("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (!voucher && !checkingVoucher) void applyVoucher();
+                  }
+                }}
+                placeholder="Nhập mã voucher"
+                className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm uppercase text-navy outline-none focus:border-cobalt"
+              />
+              {voucher ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    setVoucherState(null);
+                    setVoucherCode("");
+                    setVoucherError("");
+                    setVoucherDismissed(true);
+                  }}
+                  className="h-11 shrink-0 rounded-lg border border-line bg-white px-3 text-sm font-bold text-navy disabled:opacity-50"
+                  aria-label="Gỡ voucher"
+                >
+                  Gỡ
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pending || checkingVoucher || !voucherCode.trim()}
+                  onClick={() => void applyVoucher()}
+                  className="h-11 shrink-0 rounded-lg bg-navy px-4 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {checkingVoucher ? "Đang kiểm tra..." : "Áp dụng"}
+                </button>
+              )}
+            </div>
+            {voucherError && (
+              <p role="alert" className="mt-2 text-sm text-coral">
+                {voucherError}
+              </p>
+            )}
+            {voucher && (
+              <p role="status" className="mt-2 text-sm font-semibold text-cobalt">
+              Đã áp dụng {voucher.code}
+              </p>
+            )}
+            <div className="mt-3">
+              <VoucherPicker
+                subtotal={subtotal}
+                selectedCode={voucher?.code ?? null}
+                disabled={pending || checkingVoucher}
+                errorMessage={voucherError}
+                onApply={applyVoucher}
+              />
+            </div>
+          </div>
           <dl className="mt-6 space-y-3 border-t border-line pt-5 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted">Vận chuyển</dt>
               <dd>{shipping ? formatPrice(shipping) : "Miễn phí"}</dd>
             </div>
+            {voucher && (
+              <div className="flex justify-between gap-3 font-semibold text-cobalt">
+                <dt>Giảm giá</dt>
+                <dd>−{formatPrice(discount)}</dd>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-navy">
               <dt>Tổng cộng</dt>
-              <dd className="text-lg">{formatPrice(subtotal + shipping)}</dd>
+              <dd className="text-lg">
+                {formatPrice(subtotal + shipping - discount)}
+              </dd>
             </div>
           </dl>
           <fieldset className="mt-6 border-t border-line pt-5">
@@ -427,10 +605,18 @@ export function CheckoutView({
             </p>
           )}
           <button
-            disabled={pending || itemsNeedingVariant.length > 0}
+            disabled={
+              pending ||
+              checkingVoucher ||
+              itemsNeedingVariant.length > 0
+            }
             className="mt-6 h-12 w-full rounded-full bg-navy text-sm font-bold text-white hover:bg-cobalt disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? "Đang xử lý..." : "Đặt hàng"}
+            {pending
+              ? "Đang xử lý..."
+              : checkingVoucher
+                ? "Đang xác minh voucher..."
+                : "Đặt hàng"}
           </button>
           <p className="mt-4 text-center text-xs leading-5 text-muted">
             Giá và tồn kho được xác minh phía máy chủ khi đặt hàng.

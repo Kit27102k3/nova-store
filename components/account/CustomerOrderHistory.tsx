@@ -236,6 +236,11 @@ export function CustomerOrderHistory({
                     <span className="font-extrabold text-[#e24747]">
                       {formatPrice(order.total)}
                     </span>
+                    {order.voucher_code && (
+                      <span className="ml-2 text-xs font-semibold text-cobalt">
+                        {order.voucher_code} · −{formatPrice(order.discount_amount)}
+                      </span>
+                    )}
                   </p>
                 <button
                   type="button"
@@ -327,6 +332,18 @@ export function CustomerOrderHistory({
                           ? formatPrice(order.shipping_fee)
                           : "Miễn phí"}
                       </dd>
+                    </div>
+                    {order.discount_amount > 0 && (
+                      <div className="flex justify-between font-semibold text-cobalt">
+                        <dt>
+                          Giảm giá{order.voucher_code ? ` · ${order.voucher_code}` : ""}
+                        </dt>
+                        <dd>−{formatPrice(order.discount_amount)}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-navy">
+                      <dt>Tổng cộng</dt>
+                      <dd>{formatPrice(order.total)}</dd>
                     </div>
                   </dl>
                 </div>

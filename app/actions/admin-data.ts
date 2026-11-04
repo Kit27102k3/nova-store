@@ -363,3 +363,72 @@ export async function saveAdminSettings(
   revalidateStorefront();
   return succeeded("Đã lưu cài đặt cửa hàng.");
 }
+
+export async function saveAdminVoucher(
+  formData: FormData,
+): Promise<AdminMutationResult> {
+  const id = field(formData, "id");
+  const code = field(formData, "code").toUpperCase();
+  const discountType = field(formData, "discountType");
+  const discountValue = Number(field(formData, "discountValue"));
+  const minSubtotal = Number(field(formData, "minSubtotal"));
+  const maxDiscountValue = field(formData, "maxDiscount");
+  const usageLimitValue = field(formData, "usageLimit");
+  const maxDiscount = maxDiscountValue ? Number(maxDiscountValue) : null;
+  const usageLimit = usageLimitValue ? Number(usageLimitValue) : null;
+  const startsAtValue = field(formData, "startsAt");
+  const expiresAtValue = field(formData, "expiresAt");
+  const startsAt = startsAtValue ? new Date(startsAtValue) : null;
+  const expiresAt = expiresAtValue ? new Date(expiresAtValue) : null;
+
+  if (
+    (id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) ||
+    !/^[A-Z0-9_-]{3,40}$/.test(code) ||
+    !["percent", "fixed"].includes(discountType) ||
+    !Number.isSafeInteger(discountValue) ||
+    discountValue < 1 ||
+    discountValue > (discountType === "percent" ? 100 : 2147483647) ||
+    !Number.isSafeInteger(minSubtotal) ||
+    minSubtotal < 0 ||
+    (maxDiscount !== null &&
+      (!Number.isSafeInteger(maxDiscount) || maxDiscount < 1)) ||
+    (usageLimit !== null &&
+      (!Number.isSafeInteger(usageLimit) || usageLimit < 1)) ||
+    (startsAt !== null && !Number.isFinite(startsAt.getTime())) ||
+    (expiresAt !== null && !Number.isFinite(expiresAt.getTime())) ||
+    (startsAt !== null &&
+      expiresAt !== null &&
+      expiresAt.getTime() <= startsAt.getTime())
+  ) {
+    return failed("Vui lòng kiểm tra mã, mức giảm, giới hạn và thời hạn voucher.");
+  }
+
+  const { client, error: authorizationError } = await getAdminClient();
+  if (!client) {
+    return failed(authorizationError ?? "Không thể xác thực quản trị viên.");
+  }
+  const { error } = await client.from("store_vouchers").upsert({
+    ...(id ? { id } : {}),
+    code,
+    discount_type: discountType,
+    discount_value: discountValue,
+    min_subtotal: minSubtotal,
+    max_discount: maxDiscount,
+    starts_at: startsAt?.toISOString() ?? null,
+    expires_at: expiresAt?.toISOString() ?? null,
+    usage_limit: usageLimit,
+    is_active: formData.get("isActive") === "on",
+  });
+  if (error) {
+    console.error("Không thể lưu voucher quản trị.", error);
+    return failed(
+      error.code === "23505"
+        ? "Mã voucher đã tồn tại."
+        : "Không thể lưu voucher. Hãy kiểm tra migration Supabase mới nhất.",
+    );
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/checkout");
+  return succeeded(id ? "Đã cập nhật voucher." : "Đã tạo voucher.");
+}

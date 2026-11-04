@@ -54,6 +54,8 @@ export type CustomerOrder = {
   payment_status: "unpaid" | "pending" | "paid" | "failed" | "cancelled";
   subtotal: number;
   shipping_fee: number;
+  voucher_code: string | null;
+  discount_amount: number;
   total: number;
   created_at: string;
   ghn_order_code: string | null;
@@ -230,7 +232,7 @@ export async function getCustomerOrders(): Promise<
 
   const { data: rows, error } = await supabase
     .from("store_orders")
-    .select("id, order_number, customer_name, customer_email, customer_phone, address, district, city, status, subtotal, shipping_fee, total, created_at")
+    .select("id, order_number, customer_name, customer_email, customer_phone, address, district, city, status, subtotal, shipping_fee, voucher_code, discount_amount, total, created_at")
     .eq("customer_id", authData.user.id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -248,6 +250,8 @@ export async function getCustomerOrders(): Promise<
     order_number: row.order_number ?? `NV-${row.id}`,
     subtotal: Number(row.subtotal),
     shipping_fee: Number(row.shipping_fee),
+    voucher_code: row.voucher_code ?? null,
+    discount_amount: Number(row.discount_amount ?? 0),
     total: Number(row.total),
     payment_method: "cod",
     payment_status: "unpaid",

@@ -18,6 +18,22 @@ export type OrderItemInput = {
   variant: string | null;
 };
 
+function isOrderItemInput(item: unknown): item is OrderItemInput {
+  if (!item || typeof item !== "object") return false;
+  const row = item as Record<string, unknown>;
+  return (
+    typeof row.product_id === "number" &&
+    Number.isSafeInteger(row.product_id) &&
+    row.product_id > 0 &&
+    typeof row.quantity === "number" &&
+    Number.isSafeInteger(row.quantity) &&
+    row.quantity >= 1 &&
+    row.quantity <= 99 &&
+    (row.variant === null ||
+      (typeof row.variant === "string" && row.variant.length <= 120))
+  );
+}
+
 export type PlaceOrderResult =
   | {
       success: true;
@@ -26,6 +42,25 @@ export type PlaceOrderResult =
       paymentUrl?: string;
     }
   | { success: false; message: string };
+
+function getPublicOrderError(message: string, code?: string) {
+  const knownBusinessError =
+    /^(?:Mã voucher|Voucher|Giỏ hàng|Sản phẩm|Hãy sử dụng email đã đăng nhập|Thông tin đặt hàng|Danh sách sản phẩm|Phương thức thanh toán|Tổng tiền đơn hàng|Đơn hàng phải)/i;
+  if (knownBusinessError.test(message)) return message;
+  if (message.includes("place_store_order_with_payment")) {
+    return "Thiếu hàm đặt hàng nền tảng trong Supabase. Chạy trước supabase/migrations/20261103010000_vnpay_payments.sql, sau đó reload schema.";
+  }
+  if (code === "PGRST202" || code === "42883") {
+    return "Supabase chưa tìm thấy hàm place_store_order_with_voucher hoặc chữ ký tham số không khớp. Hãy kiểm tra hàm và quyền EXECUTE trong SQL Editor; chỉ reload schema sẽ không tạo hàm còn thiếu.";
+  }
+  if (code === "42501") {
+    return "Supabase chưa cấp quyền gọi hàm đặt hàng. Hãy chạy lại migration voucher trên đúng project.";
+  }
+  if (code === "23514") {
+    return "Dữ liệu đơn hàng không khớp quy tắc tổng tiền/giảm giá. Hãy kiểm tra migration voucher trên Supabase.";
+  }
+  return "Không thể ghi nhận đơn hàng. Vui lòng kiểm tra thông tin và thử lại.";
+}
 
 export async function placeStoreOrder(
   formData: FormData,
@@ -66,7 +101,12 @@ export async function placeStoreOrder(
       message: "Chưa cấu hình kết nối cửa hàng. Đơn hàng chưa được ghi nhận.",
     };
   }
-  if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
+  if (
+    !Array.isArray(items) ||
+    items.length === 0 ||
+    items.length > 50 ||
+    !items.every(isOrderItemInput)
+  ) {
     return { success: false, message: "Giỏ hàng không hợp lệ." };
   }
 
@@ -74,8 +114,12 @@ export async function placeStoreOrder(
     const value = formData.get(name);
     return typeof value === "string" ? value.trim() : "";
   };
+  const voucherCode = getField("voucher_code").toUpperCase();
+  if (voucherCode && !/^[A-Z0-9_-]{3,40}$/.test(voucherCode)) {
+    return { success: false, message: "Mã voucher không hợp lệ." };
+  }
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("place_store_order_with_payment", {
+  const { data, error } = await supabase.rpc("place_store_order_with_voucher", {
     p_customer_name: getField("name"),
     p_customer_email: getField("email"),
     p_customer_phone: getField("phone"),
@@ -84,17 +128,13 @@ export async function placeStoreOrder(
     p_city: getField("city"),
     p_items: items,
     p_payment_method: paymentMethod,
+    p_voucher_code: voucherCode,
   });
   if (error) {
     console.error("Không thể tạo đơn hàng.", error);
     return {
       success: false,
-      message:
-        error.message.includes("tồn kho") ||
-        error.message.includes("không còn khả dụng") ||
-        error.message.includes("thanh toán VNPay")
-          ? error.message
-          : "Không thể ghi nhận đơn hàng. Vui lòng kiểm tra thông tin và thử lại.",
+      message: getPublicOrderError(error.message, error.code),
     };
   }
   if (

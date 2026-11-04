@@ -14,7 +14,9 @@ import {
   type AdminMutationResult,
 } from "@/app/actions/admin-data";
 import { adminLogout } from "@/app/actions/admin";
+import { VoucherManager } from "@/components/admin/VoucherManager";
 import { formatPrice } from "@/data/products";
+import type { AdminVoucher } from "@/lib/vouchers";
 import type {
   AdminCategory,
   AdminDashboardData,
@@ -29,6 +31,7 @@ const adminSections = [
   { id: "categories", label: "Danh mục", icon: "◈" },
   { id: "orders", label: "Đơn hàng", icon: "▤" },
   { id: "customers", label: "Khách hàng", icon: "♙" },
+  { id: "promotions", label: "Khuyến mãi", icon: "%" },
   { id: "settings", label: "Cài đặt", icon: "⚙" },
 ] as const;
 
@@ -45,6 +48,7 @@ const emptyCategories: AdminCategory[] = [];
 const emptyProducts: AdminProduct[] = [];
 const emptyOrders: AdminOrder[] = [];
 const emptyCustomers: AdminDashboardData["customers"] = [];
+const emptyVouchers: AdminVoucher[] = [];
 const statusLabels: Record<AdminOrder["status"], string> = {
   pending: "Chờ xác nhận",
   confirmed: "Đã xác nhận",
@@ -89,6 +93,7 @@ export function AdminDashboard({
   const products = dashboard?.products ?? emptyProducts;
   const orders = dashboard?.orders ?? emptyOrders;
   const customers = dashboard?.customers ?? emptyCustomers;
+  const vouchers = dashboard?.vouchers ?? emptyVouchers;
   const settings = dashboard?.settings ?? emptySettings;
   const activeSectionLabel =
     adminSections.find((section) => section.id === activeSection)?.label ??
@@ -244,8 +249,8 @@ export function AdminDashboard({
               className="mt-6 rounded-xl border border-coral/40 bg-coral/10 p-4 text-sm leading-6 text-navy"
             >
               {loadError} Hãy chạy file{" "}
-              <code>supabase/migrations/20261101000000_create_store_admin.sql</code>{" "}
-              trong Supabase SQL Editor.
+              <code>supabase/migrations/20261104000000_store_vouchers.sql</code>{" "}
+              cùng các migration trước đó theo thứ tự trong Supabase SQL Editor.
             </div>
           )}
           {notice && (
@@ -413,6 +418,14 @@ export function AdminDashboard({
 
           {activeSection === "customers" && (
             <section className="mt-8 rounded-2xl border border-line bg-white">
+              {dashboard?.customerLoadError && (
+                <p
+                  role="status"
+                  className="m-5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-navy sm:mx-6"
+                >
+                  {dashboard.customerLoadError}
+                </p>
+              )}
               <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <SectionHeading title="Khách hàng" detail={`${filteredCustomers.length} tài khoản và khách mua hàng`} />
                 <SearchInput label="Tìm khách hàng" value={query} onChange={setQuery} />
@@ -444,6 +457,13 @@ export function AdminDashboard({
                 </table>
               </div>
             </section>
+          )}
+
+          {activeSection === "promotions" && (
+            <VoucherManager
+              vouchers={vouchers}
+              loadError={dashboard?.voucherLoadError}
+            />
           )}
 
           {activeSection === "settings" && (
@@ -682,6 +702,11 @@ function FragmentOrderRow({
         <td className="px-4 py-4 text-sm text-muted">{formatDate(order.created_at)}</td>
         <td className="px-4 py-4 text-sm font-bold text-navy">
           {formatPrice(order.total)}
+          {order.voucher_code && (
+            <span className="mt-1 block text-[11px] font-semibold text-cobalt">
+              {order.voucher_code} · −{formatPrice(order.discount_amount)}
+            </span>
+          )}
           <span className="mt-1 block text-[11px] font-semibold text-muted">
             {paymentMethodLabels[order.payment_method]} ·{" "}
             {paymentStatusLabels[order.payment_status]}
@@ -731,7 +756,7 @@ function FragmentOrderRow({
                   {paymentStatusLabels[order.payment_status]}
                 </p>
               </div>
-              <div><h3 className="font-bold text-navy">Sản phẩm trong đơn</h3><ul className="mt-2 space-y-2">{order.items.map((item, index) => <li key={`${item.product_name}-${index}`} className="flex justify-between gap-3 text-muted"><span>{item.quantity}× {item.product_name}{item.variant ? ` · ${item.variant}` : ""}</span><span className="shrink-0">{formatPrice(item.unit_price * item.quantity)}</span></li>)}</ul><p className="mt-3 border-t border-line pt-3 text-right text-xs text-muted">Tạm tính {formatPrice(order.subtotal)} · Phí ship {formatPrice(order.shipping_fee)}</p></div>
+              <div><h3 className="font-bold text-navy">Sản phẩm trong đơn</h3><ul className="mt-2 space-y-2">{order.items.map((item, index) => <li key={`${item.product_name}-${index}`} className="flex justify-between gap-3 text-muted"><span>{item.quantity}× {item.product_name}{item.variant ? ` · ${item.variant}` : ""}</span><span className="shrink-0">{formatPrice(item.unit_price * item.quantity)}</span></li>)}</ul><dl className="mt-3 space-y-2 border-t border-line pt-3 text-right text-xs"><div className="flex justify-between text-muted"><dt>Tạm tính</dt><dd>{formatPrice(order.subtotal)}</dd></div><div className="flex justify-between text-muted"><dt>Phí ship</dt><dd>{order.shipping_fee ? formatPrice(order.shipping_fee) : "Miễn phí"}</dd></div>{order.discount_amount > 0 && <div className="flex justify-between font-semibold text-cobalt"><dt>Giảm giá{order.voucher_code ? ` · ${order.voucher_code}` : ""}</dt><dd>−{formatPrice(order.discount_amount)}</dd></div>}<div className="flex justify-between font-bold text-navy"><dt>Tổng cộng</dt><dd>{formatPrice(order.total)}</dd></div></dl></div>
             </div>
             <section className="mt-6 rounded-xl border border-line bg-white p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -767,7 +792,7 @@ function FragmentOrderRow({
                       name="ghnOrderCode"
                       required
                       maxLength={40}
-                      pattern="[A-Za-z0-9_-]+"
+                      pattern="[A-Za-z0-9_\-]+"
                       defaultValue={order.ghn_order_code ?? ""}
                       placeholder="Ví dụ: GHN..."
                       disabled={pending}
