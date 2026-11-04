@@ -5,6 +5,7 @@ import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { RouteTransition } from "@/components/layout/RouteTransition";
+import { StoreChatbot } from "@/components/chat/StoreChatbot";
 import { StoreProvider } from "@/components/store-context";
 import { getStoreCatalog } from "@/lib/supabase/catalog";
 import { products } from "@/data/products";
@@ -50,6 +51,7 @@ async function StoreFrame({ children }: { children: ReactNode }) {
         <RouteTransition>{children}</RouteTransition>
       </main>
       <Footer settings={settings} />
+      <StoreChatbot />
     </StoreProvider>
   );
 }
