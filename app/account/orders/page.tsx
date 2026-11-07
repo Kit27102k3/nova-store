@@ -39,6 +39,12 @@ export default function OrdersPage() {
         >
           Khám phá sản phẩm <Icon name="arrow" className="size-4" />
         </Link>
+        <Link
+          href="/track-order"
+          className="relative inline-flex h-11 items-center gap-2 rounded-full border border-white/30 px-5 text-sm font-bold text-white transition hover:bg-white/10"
+        >
+          Tra cứu đơn khách
+        </Link>
       </section>
       <Suspense
         fallback={

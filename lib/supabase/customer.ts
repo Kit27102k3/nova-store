@@ -40,6 +40,14 @@ export type CustomerOrderEvent = {
   created_at: string;
 };
 
+export type ProductReview = {
+  id: number;
+  rating: number;
+  title: string;
+  body: string;
+  created_at: string;
+};
+
 export type CustomerOrder = {
   id: number;
   order_number: string;
@@ -404,6 +412,37 @@ export async function getCustomerOrders(): Promise<
     }
   }
   return { user: authData.user, data: orders, error: null, notice };
+}
+
+export async function getProductReviews(productId: number): Promise<{
+  data: ProductReview[];
+  error: string | null;
+}> {
+  if (!getSupabaseConfig()) return { data: [], error: null };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("store_product_reviews")
+    .select("id, rating, title, body, created_at")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) {
+    console.error("Không thể tải đánh giá sản phẩm.", error);
+    return {
+      data: [],
+      error: "Đánh giá tạm thời chưa tải được. Vui lòng thử lại sau.",
+    };
+  }
+  return {
+    data: (data ?? []).map((row) => ({
+      id: Number(row.id),
+      rating: Number(row.rating),
+      title: row.title,
+      body: row.body,
+      created_at: row.created_at,
+    })),
+    error: null,
+  };
 }
 
 export async function getCheckoutCustomerDetails() {

@@ -191,7 +191,13 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardResult> {
       images: row.images,
       description: row.description,
       details: row.details,
-      variants: row.variants ?? undefined,
+      variants: row.variants
+        ? {
+            label: row.variants.label,
+            options: row.variants.options,
+            inventory: row.variants.stock ?? undefined,
+          }
+        : undefined,
     };
   });
   const orders: AdminOrder[] = (orderResult.data ?? []).map((row) => ({

@@ -42,7 +42,18 @@ function getSampleCatalog(): StoreCatalog {
       ...category,
       slug: ["thoi-trang", "phu-kien", "cong-nghe", "doi-song"][index],
     })),
-    products: sampleProducts,
+    products: sampleProducts.map((product) => ({
+      ...product,
+      inventory: 20,
+      variants: product.variants
+        ? {
+            ...product.variants,
+            inventory: Object.fromEntries(
+              product.variants.options.map((option) => [option, 5]),
+            ),
+          }
+        : undefined,
+    })),
     settings: defaultSettings,
   };
 }
@@ -68,7 +79,7 @@ export async function getStoreCatalog(): Promise<StoreCatalog> {
     supabase.from("store_categories").select("*").order("name"),
     supabase
       .from("store_products")
-      .select("id, slug, name, category_id, price, original_price, rating, reviews, badge, is_new, images, description, details, variants, category:store_categories(name)")
+      .select("id, slug, name, category_id, price, original_price, rating, reviews, badge, is_new, inventory, images, description, details, variants, category:store_categories(name)")
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
     supabase.from("store_settings").select("*").eq("id", "store").maybeSingle(),
@@ -77,9 +88,21 @@ export async function getStoreCatalog(): Promise<StoreCatalog> {
     categoryResult.error ?? productResult.error ?? settingsResult.error;
   if (queryError) {
     unstable_rethrow(queryError);
-    console.error("Không thể tải danh mục cửa hàng từ Supabase.", queryError);
+    console.error("Không thể tải danh mục cửa hàng từ Supabase.", {
+      code: queryError.code,
+      message: queryError.message,
+      hint: queryError.hint,
+    });
     if (queryError.code === "42P01" || queryError.code === "PGRST205") {
       return getSampleCatalog();
+    }
+    if (
+      queryError.code === "42501" &&
+      queryError.message.includes("store_products")
+    ) {
+      throw new Error(
+        "Supabase không cho phép đọc dữ liệu sản phẩm. Hãy chạy migration 20261105000000_customer_storefront_features.sql trong SQL Editor, sau đó khởi động lại ứng dụng.",
+      );
     }
     throw new Error(
       "Không thể tải cửa hàng. Hãy kiểm tra kết nối và chạy migration Supabase mới nhất.",
@@ -98,12 +121,19 @@ export async function getStoreCatalog(): Promise<StoreCatalog> {
       originalPrice: row.original_price === null ? undefined : Number(row.original_price),
       rating: Number(row.rating),
       reviews: Number(row.reviews),
+      inventory: Number(row.inventory),
       badge: row.badge ?? undefined,
       isNew: row.is_new,
       images: row.images,
       description: row.description,
       details: row.details,
-      variants: row.variants ?? undefined,
+      variants: row.variants
+        ? {
+            label: row.variants.label,
+            options: row.variants.options,
+            inventory: row.variants.stock ?? undefined,
+          }
+        : undefined,
     };
   });
 

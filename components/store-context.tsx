@@ -253,16 +253,6 @@ export function StoreProvider({
 
   const addToCart = useCallback(
     (productId: number, quantity = 1, variant?: string) => {
-      if (authStatus !== "authenticated") {
-        notify(
-          authStatus === "loading"
-            ? "Đang kiểm tra đăng nhập. Vui lòng thử lại sau giây lát."
-            : authStatus === "error"
-              ? "Không thể xác minh đăng nhập. Vui lòng tải lại trang."
-              : "Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.",
-        );
-        return;
-      }
       const product = products.find((entry) => entry.id === productId);
       if (!product || !Number.isSafeInteger(quantity) || quantity < 1) {
         notify("Sản phẩm hoặc số lượng không hợp lệ.");
@@ -280,6 +270,23 @@ export function StoreProvider({
         );
         return;
       }
+      const available = product.variants && variant
+        ? product.variants.inventory?.[variant]
+        : product.inventory;
+      if (available !== undefined) {
+        const alreadyInCart =
+          cart.find(
+            (item) => item.productId === productId && item.variant === variant,
+          )?.quantity ?? 0;
+        if (alreadyInCart + quantity > available) {
+          notify(
+            available === 0
+              ? "Lựa chọn này hiện đã hết hàng."
+              : `Chỉ còn ${available} sản phẩm cho lựa chọn này.`,
+          );
+          return;
+        }
+      }
       setCart((current) => {
         const existing = current.find(
           (item) => item.productId === productId && item.variant === variant,
@@ -295,7 +302,7 @@ export function StoreProvider({
       });
       notify("Đã thêm vào giỏ hàng");
     },
-    [authStatus, notify, products],
+    [cart, notify, products],
   );
 
   const updateQuantity = useCallback(

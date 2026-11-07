@@ -9,6 +9,7 @@ export type Product = {
   originalPrice?: number;
   rating: number;
   reviews: number;
+  inventory?: number;
   badge?: "Bán chạy" | "Mới";
   isNew?: boolean;
   images: string[];
@@ -17,6 +18,7 @@ export type Product = {
   variants?: {
     label: string;
     options: string[];
+    inventory?: Record<string, number>;
   };
 };
 

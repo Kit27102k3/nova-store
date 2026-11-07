@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import {
   getSupabaseConfig,
 } from "@/lib/supabase/config";
@@ -170,4 +170,54 @@ export async function cancelCustomerOrder(
   revalidatePath("/account/orders");
   revalidatePath("/admin");
   return { success: true, message: "Đã hủy đơn hàng." };
+}
+
+export async function submitProductReview(
+  formData: FormData,
+): Promise<CustomerActionResult> {
+  const productId = Number(field(formData, "productId"));
+  const orderNumber = field(formData, "orderNumber").toUpperCase();
+  const rating = Number(field(formData, "rating"));
+  const title = field(formData, "title");
+  const body = field(formData, "body");
+  if (
+    !Number.isSafeInteger(productId) ||
+    productId < 1 ||
+    !/^NV-\d{4}-\d{6,}$/.test(orderNumber) ||
+    !Number.isSafeInteger(rating) ||
+    rating < 1 ||
+    rating > 5 ||
+    title.length < 2 ||
+    title.length > 120 ||
+    body.length < 10 ||
+    body.length > 2000
+  ) {
+    return { success: false, message: "Vui lòng kiểm tra nội dung đánh giá." };
+  }
+  const { client, error: authError } = await getAuthenticatedClient();
+  if (!client) return { success: false, message: authError ?? "Vui lòng đăng nhập." };
+  const { error } = await client.rpc("submit_store_product_review", {
+    p_product_id: productId,
+    p_order_number: orderNumber,
+    p_rating: rating,
+    p_title: title,
+    p_body: body,
+  });
+  if (error) {
+    console.error("Không thể lưu đánh giá sản phẩm.", error);
+    if (error.message.includes("đơn hàng đã hoàn thành")) {
+      return { success: false, message: error.message };
+    }
+    if (error.message.includes("đăng nhập")) {
+      return { success: false, message: error.message };
+    }
+    return {
+      success: false,
+      message: "Chưa thể lưu đánh giá. Hãy kiểm tra mã đơn và thử lại.",
+    };
+  }
+  updateTag("store-catalog");
+  revalidatePath("/products");
+  revalidatePath("/products/[slug]", "page");
+  return { success: true, message: "Cảm ơn bạn đã chia sẻ đánh giá!" };
 }

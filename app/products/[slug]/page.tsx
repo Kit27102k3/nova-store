@@ -5,9 +5,11 @@ import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ProductCard } from "@/components/products/ProductCard";
 import { ProductDetailActions } from "@/components/products/ProductDetailActions";
 import { ProductGallery } from "@/components/products/ProductGallery";
+import { ProductReviews } from "@/components/products/ProductReviews";
 import { Icon } from "@/components/ui/Icon";
 import { formatPrice } from "@/data/products";
 import { getStoreCatalog } from "@/lib/supabase/catalog";
+import { getProductReviews } from "@/lib/supabase/customer";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
@@ -43,6 +45,7 @@ async function ProductContent({ params }: ProductPageProps) {
   const related = products
     .filter((item) => item.category === product.category && item.id !== product.id)
     .slice(0, 4);
+  const reviewResult = await getProductReviews(product.id);
 
   return (
     <div className="pb-16 pt-5 sm:pt-7">
@@ -188,6 +191,12 @@ async function ProductContent({ params }: ProductPageProps) {
             </div>
           </div>
         </section>
+
+        <ProductReviews
+          productId={product.id}
+          reviews={reviewResult.data}
+          error={reviewResult.error}
+        />
 
         {related.length > 0 && (
           <section className="mt-14 sm:mt-16">

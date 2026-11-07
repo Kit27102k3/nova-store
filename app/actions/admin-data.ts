@@ -109,6 +109,11 @@ export async function saveAdminProduct(
     .split(/\r?\n/)
     .map((option) => option.trim())
     .filter(Boolean);
+  const variantStock = field(formData, "variantStock")
+    .split(/\r?\n/)
+    .map((stock) => stock.trim())
+    .filter(Boolean)
+    .map(Number);
   const description = field(formData, "description");
   const idValue = field(formData, "id");
   const id = idValue ? Number(idValue) : undefined;
@@ -132,8 +137,17 @@ export async function saveAdminProduct(
     details.length > 30 ||
     details.some((detail) => detail.length > 500) ||
     variantLabel.length > 80 ||
+    Boolean(variantLabel) !== (variantOptions.length > 0) ||
     variantOptions.length > 50 ||
     variantOptions.some((option) => option.length > 120) ||
+    (variantOptions.length > 0 &&
+      (variantStock.length !== variantOptions.length ||
+        variantStock.some(
+          (stock) => !Number.isSafeInteger(stock) || stock < 0,
+        ) ||
+        variantOptions.length !== new Set(variantOptions).size ||
+        variantStock.reduce((sum, stock) => sum + stock, 0) >
+          2147483647)) ||
     (id !== undefined && (!Number.isSafeInteger(id) || id < 1))
   ) {
     return failed("Vui lòng kiểm tra tên, danh mục, giá, tồn kho và ảnh sản phẩm.");
@@ -156,8 +170,17 @@ export async function saveAdminProduct(
   const badgeValue = field(formData, "badge");
   const variants =
     variantLabel && variantOptions.length
-      ? { label: variantLabel, options: variantOptions }
+      ? {
+          label: variantLabel,
+          options: variantOptions,
+          stock: Object.fromEntries(
+            variantOptions.map((option, index) => [option, variantStock[index]]),
+          ),
+        }
       : null;
+  const productInventory = variants
+    ? variantStock.reduce((sum, stock) => sum + stock, 0)
+    : inventory;
   const record = {
     ...(id ? { id } : {}),
     name,
@@ -165,7 +188,7 @@ export async function saveAdminProduct(
     category_id: categoryId,
     price,
     original_price: originalPrice,
-    inventory,
+    inventory: productInventory,
     images,
     description,
     details,

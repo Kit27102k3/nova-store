@@ -47,6 +47,7 @@ export function CheckoutView({
   const requestedVoucher = searchParams.get("voucher")?.trim().toUpperCase() ?? "";
   const [complete, setComplete] = useState("");
   const [completeMethod, setCompleteMethod] = useState<"cod" | "vnpay">("cod");
+  const [guestTrackingCode, setGuestTrackingCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [paymentNotice, setPaymentNotice] = useState("");
   const [pending, startTransition] = useTransition();
@@ -180,6 +181,25 @@ export function CheckoutView({
         setPaymentNotice("Kết quả thanh toán không hợp lệ hoặc đã hết hạn.");
         return;
       }
+      const pendingGuestOrder = sessionStorage.getItem("nova-pending-guest-order");
+      if (pendingGuestOrder) {
+        try {
+          const parsed: unknown = JSON.parse(pendingGuestOrder);
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            "orderNumber" in parsed &&
+            parsed.orderNumber === result.orderNumber &&
+            "accessCode" in parsed &&
+            typeof parsed.accessCode === "string"
+          ) {
+            setGuestTrackingCode(parsed.accessCode);
+          }
+        } catch (error) {
+          console.error("Không thể đọc thông tin tra cứu đơn sau VNPay.", error);
+        }
+        sessionStorage.removeItem("nova-pending-guest-order");
+      }
       if (result.status === "paid") {
         clearCart();
         setComplete(result.orderNumber);
@@ -234,12 +254,22 @@ export function CheckoutView({
         return;
       }
       if (result.paymentUrl) {
+        if (result.guestTrackingCode) {
+          sessionStorage.setItem(
+            "nova-pending-guest-order",
+            JSON.stringify({
+              orderNumber: result.orderNumber,
+              accessCode: result.guestTrackingCode,
+            }),
+          );
+        }
         window.location.assign(result.paymentUrl);
         return;
       }
       clearCart();
       setComplete(result.orderNumber);
       setCompleteMethod(result.paymentMethod);
+      setGuestTrackingCode(result.guestTrackingCode ?? "");
     });
   };
 
@@ -262,6 +292,23 @@ export function CheckoutView({
             hệ để xác nhận đơn hàng
             {completeMethod === "cod" && " và thanh toán khi nhận hàng"}.
           </p>
+          {guestTrackingCode && (
+            <div className="mt-6 rounded-2xl border border-cobalt/20 bg-white p-5 text-left">
+              <h2 className="font-bold text-navy">Lưu mã tra cứu đơn hàng</h2>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                Mã này chỉ hiển thị một lần. Hãy lưu lại cùng mã đơn để tra cứu trạng thái mà không cần tài khoản.
+              </p>
+              <code className="mt-3 block select-all break-all rounded-lg bg-mist p-3 text-sm font-bold text-navy">
+                {guestTrackingCode}
+              </code>
+              <Link
+                href="/track-order"
+                className="mt-4 inline-flex h-10 items-center rounded-full bg-cobalt px-5 text-sm font-bold text-white"
+              >
+                Tra cứu đơn hàng
+              </Link>
+            </div>
+          )}
           <Link
             href="/products"
             className="mt-8 inline-flex h-12 items-center rounded-full bg-navy px-7 text-sm font-bold text-white"
@@ -309,6 +356,14 @@ export function CheckoutView({
           className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-navy"
         >
           {visiblePaymentNotice}
+        </p>
+      )}
+      {guestTrackingCode && visiblePaymentNotice && (
+        <p className="mt-3 rounded-xl border border-cobalt/20 bg-white p-4 text-sm leading-6 text-navy">
+          Mã tra cứu đơn của bạn: <code className="select-all font-bold">{guestTrackingCode}</code>.{" "}
+          <Link href="/track-order" className="font-bold text-cobalt underline">
+            Tra cứu đơn
+          </Link>
         </p>
       )}
       <form
